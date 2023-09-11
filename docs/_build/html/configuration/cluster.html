@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Cluster Configuration &#8212; pytranscoder 2.2.5 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Running (Local)" href="../usage/running-local.html" />
+    <link rel="prev" title="Concurrency" href="concurrency.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="cluster-configuration">
+<h1>Cluster Configuration<a class="headerlink" href="#cluster-configuration" title="Permalink to this heading">¶</a></h1>
+<p>Watching multiple machines doing your bidding is a beautiful thing.  Watching each of them doing concurrent bidding is even more beautiful.
+With a well-thought-out configuration this is easy to do.</p>
+<p>We will refer to the machine you use pytranscode on as your <em>cluster manager</em> and other machines as <em>hosts</em>.
+Note that the <em>cluster manager</em> machine can also be designated as a host.</p>
+<p>There are 2 methods to run transcodes on hosts - agent-less using <em>ssh</em> or via pytranscoder <em>agent mode</em>.</p>
+</section>
+<section id="ssh">
+<h1>SSH<a class="headerlink" href="#ssh" title="Permalink to this heading">¶</a></h1>
+<section id="linux">
+<h2>Linux<a class="headerlink" href="#linux" title="Permalink to this heading">¶</a></h2>
+<p>Setting up remote hosts is as follows, if not already setup for ssh access and ffmpeg:
+Linux is natively supported as long as the following conditions are true:
+* Each host machine in the cluster is running an <em>ssh</em> server.
+* Each host has <em>ffmpeg</em> installed.
+* If using hardware encoding, your machine (and <em>ffmpeg</em>) have been setup and tested to make sure it is working. Setup of hardware encoding is
+beyond the scope of this document.
+* The <em>cluster manager</em> machine must be able to <em>ssh</em> to each host without a password prompt (see <cite>man ssh-copy-id</cite>).</p>
+</section>
+<section id="macos">
+<h2>MacOS<a class="headerlink" href="#macos" title="Permalink to this heading">¶</a></h2>
+<p>MacOS, being based on BSD, is also natively supported.  See Linux section.
+Check your MacOS version of <em>ffmpeg</em> for what hardware acceleration support is available, if any.</p>
+</section>
+<section id="windows-10-11">
+<h2>Windows 10/11<a class="headerlink" href="#windows-10-11" title="Permalink to this heading">¶</a></h2>
+<p>Enable SSH access.</p>
+<p>This method will only allow <em>streaming mode</em> cluster support due to Windows OpenSSH not being able to access network shares.</p>
+<ul class="simple">
+<li><p>Open your Windows Services manager and scroll down to OpenSSH Server.  Enable it, preferably setting to auto-start.</p></li>
+<li><p>In the home folder of the user account create a directory called <strong>.ssh</strong>.  Then from your <em>cluster manager</em> copy your $HOME/.ssh/id_rsa.pub to c:/Users/<em>username</em>/.ssh/authorized_keys on Windows.</p></li>
+</ul>
+<p>Finally, if you have a supported nVidia card download the nVidia CUDA drivers and install if you plan on using CUDA encoding.
+It’s a large download. Choose Custom install and deselect all the documentation and other things you don’t need if you want to
+minimize space usage.</p>
+</section>
+</section>
+<section id="pytranscoder-agent">
+<h1>Pytranscoder Agent<a class="headerlink" href="#pytranscoder-agent" title="Permalink to this heading">¶</a></h1>
+<p>As of 2.2.5 pytranscoder can run in <em>agent</em> mode.  This allows you to install pytranscoder on any host and use it instead of <em>ssh</em>.
+The <em>cluster manager</em> will “talk” to the hosts via this agent directly and function just like ssh, but without the need to enable ssh or share keys.
+For the security-conscious (and everyone should be), the agent code is called agent.py for you to review.  Pytranscoder talks to agents via a custom protocol. It accepts the file to transcode from the <em>cluster manager</em>, transcodes it,
+then sends it back.  That is all.  It does not access any system resources other than the temp folder you specify.</p>
+<p>For all platforms, use the installation instructions to install pytranscoder on all machines that will act as hosts.
+When ready to start a transcode session, start them with pytranscoder –agent.  They will talk to each other on port 9567 so this port needs to be open in your firewall.</p>
+<section id="cluster-definition">
+<h2>Cluster Definition<a class="headerlink" href="#cluster-definition" title="Permalink to this heading">¶</a></h2>
+<p>First, a word about queues.  The <em>queues:</em> definition in the Global section only applies when running pytranscoder on
+a single host (not clustered using -c).  These queues are not used when running in cluster mode. This is because you can define queues for each host doing work.
+So whatever queues you have defined there, just ignore for the purposes of cluster setup.</p>
+<p>Setting up your clusters is as it sounds - you must define some information about each host participating in the cluster, even
+including the one your are running pytranscoder from, if applicable.</p>
+<p><em>Sample, 4-host configuration</em>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">ssh</span><span class="p p-Indicator">:</span><span class="w">                </span><span class="s">&#39;/usr/bin/ssh&#39;</span><span class="w">    </span><span class="c1"># used only in cluster mode</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<span class="w">    </span><span class="c1">######################</span>
+<span class="w">    </span><span class="c1"># cluster definitions</span>
+<span class="w">    </span><span class="c1">######################</span>
+<span class="w">    </span><span class="nt">clusters</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">household</span><span class="p">:</span><span class="w">                  </span><span class="c1"># name for this cluster</span>
+
+<span class="w">            </span><span class="c1">#################################</span>
+<span class="w">            </span><span class="c1"># cluster manager, which will</span>
+<span class="w">            </span><span class="c1"># also participate in the cluster</span>
+<span class="w">            </span><span class="c1">#################################</span>
+<span class="w">            </span><span class="nt">mediacenter</span><span class="p">:</span>
+<span class="w">                </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">local</span><span class="w">         </span><span class="c1"># Indicates this is where pytranscoder is running and can be used in the cluster as well.</span>
+<span class="w">                </span><span class="nt">ffmpeg</span><span class="p">:</span><span class="w">         </span><span class="s">&#39;/usr/bin/ffmpeg&#39;</span>
+<span class="w">                </span><span class="nt">status</span><span class="p">:</span><span class="w">          </span><span class="s">&#39;enabled&#39;</span>
+
+<span class="w">            </span><span class="c1">##################################</span>
+<span class="w">            </span><span class="c1"># My old MacPro</span>
+<span class="w">            </span><span class="c1">##################################</span>
+<span class="w">            </span><span class="nt">macpro</span><span class="p">:</span><span class="w">                     </span><span class="c1"># name of this host (does not need to be the same as network hostname)</span>
+<span class="w">                </span><span class="nt">type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">mounted</span><span class="w">          </span><span class="c1"># machine with source media and host share a filesystem (nfs, samba, etc)</span>
+<span class="w">                </span><span class="nt">os</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">macos</span><span class="w">            </span><span class="c1"># choices are linux, macos, win10</span>
+<span class="w">                </span><span class="nt">ip</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">192.168.2.65</span>
+<span class="w">                </span><span class="nt">user</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">sshuser</span><span class="w">          </span><span class="c1"># user account used to ssh to this host</span>
+<span class="w">                </span><span class="nt">ffmpeg</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;/usr/local/bin/ffmpeg&#39;</span>
+<span class="w">                </span><span class="nt">path-substitutions</span><span class="p">:</span><span class="w">     </span><span class="c1"># optional, map source pathnames to equivalent on host</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/volume1/media/</span><span class="nv"> </span><span class="s">/mnt/media/&quot;</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;/downloads/</span><span class="nv"> </span><span class="s">/mnt/downloads/&quot;</span>
+<span class="w">                </span><span class="nt">profiles</span><span class="p">:</span><span class="w">               </span><span class="c1"># profiles allowed on this host</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">h264</span>
+<span class="w">                </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;enabled&#39;</span><span class="w">       </span><span class="c1"># set to disabled to temporarily stop using</span>
+
+<span class="w">            </span><span class="c1">#################################</span>
+<span class="w">            </span><span class="c1"># gaming machine (Windows OpenSSH)</span>
+<span class="w">            </span><span class="c1">#################################</span>
+<span class="w">            </span><span class="nt">gamer</span><span class="p">:</span>
+<span class="w">                </span><span class="nt">type</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">streaming</span><span class="w">       </span><span class="c1"># host not using a mounted filesystem (yuck)</span>
+<span class="w">                </span><span class="nt">os</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">win10</span><span class="w">           </span><span class="c1"># choices are linux, macos, win10</span>
+<span class="w">                </span><span class="nt">ip</span><span class="p">:</span><span class="w">     </span><span class="l l-Scalar l-Scalar-Plain">192.168.2.64</span><span class="w">    </span><span class="c1"># address of host</span>
+<span class="w">                </span><span class="nt">user</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">matt</span><span class="w">            </span><span class="c1"># ssh login user</span>
+<span class="w">                </span><span class="nt">working_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;c:\temp&#39;</span><span class="w">  </span><span class="c1"># working folder on remote host, required for streaming type</span>
+<span class="w">                </span><span class="nt">ffmpeg</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;c:/ffmpeg/bin/ffmpeg&#39;</span>
+<span class="w">                </span><span class="nt">profiles</span><span class="p">:</span><span class="w">               </span><span class="c1"># profiles allowed on this host</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc_cuda</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc_qsv</span>
+<span class="w">                </span><span class="nt">queues</span><span class="p">:</span>
+<span class="w">                    </span><span class="nt">qsv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">              </span><span class="c1"># allow only 1 encode on the CPU at a time</span>
+<span class="w">                    </span><span class="nt">cuda</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">             </span><span class="c1"># allow 2 concurrent encodes on the nVidia card</span>
+<span class="w">                </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;enabled&#39;</span><span class="w">         </span><span class="c1"># set to disabled to temporarily stop using</span>
+
+<span class="w">            </span><span class="c1">####################################################</span>
+<span class="w">            </span><span class="c1"># Spare family machine - Windows w/o SSH</span>
+<span class="w">            </span><span class="c1">####################################################</span>
+<span class="w">            </span><span class="nt">family</span><span class="p">:</span><span class="w">                     </span><span class="c1"># machine configured to use WSL ssh server</span>
+<span class="w">                </span><span class="nt">type</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">agent</span>
+<span class="w">                </span><span class="nt">os</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">win10</span>
+<span class="w">                </span><span class="nt">ip</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">192.168.2.66</span>
+<span class="w">                </span><span class="nt">user</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">chris</span>
+<span class="w">                </span><span class="nt">ffmpeg</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;c:/ffmpeg/bin/ffmpeg&#39;</span>
+<span class="w">                </span><span class="nt">profiles</span><span class="p">:</span><span class="w">               </span><span class="c1"># profiles allowed on this host</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc_cuda</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc_cuda_10bit</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">handbrake_qsv_hevc</span>
+<span class="w">                    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">handbrake_qsv_h264</span>
+<span class="w">                </span><span class="nt">queues</span><span class="p">:</span>
+<span class="w">                    </span><span class="nt">qsv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">                    </span><span class="nt">cuda</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">                </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">enabled</span>
+</pre></div>
+</div>
+<p>This sample is based on a setup where a Linux machine is used as a media server, and all media is stored on that machine. The
+relevant root paths on that machine are <em>/downloads</em> and <em>/volume1/media</em>.  These folders are also shared via Samba (SMB) and NFS
+and accessible to all other machines on the network.</p>
+<p>The first machine, <strong>mediacenter</strong>, is of type <em>local</em> which means it’s the same machine we’re running pytranscoder on. This is just
+a simplified way of adding the machine without requiring ssh into itself. Status is either <em>enabled</em> or <em>disabled</em>. If disabled it will not participate in the cluster.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>pytranscoder will check that each machine in the cluster is up and accessible when you start a job. If a host is down it will
+be ignored and processing will continue with the others.</p>
+</div>
+<p>Skipping down to <strong>macpro</strong>, the type is <em>mounted</em>. The <em>local</em> and <em>mounted</em> types are most preferred as they are faster. What this means
+is the host has mounted shared folders from the server and can access media directly. In the Windows world this is a mapped drive, in Linux
+and MacOS it’s an NFS mount.  In the case of Linux or MacOS, if your mountpoints are not named the same as on the server you must use
+the <em>path-substitutions</em> configuration.</p>
+<p>For example, there is a video file on the server in <em>/downloads/mymedia.mp4</em>.  The <em>/downloads</em> folder is exported via NFS and mounted on
+<strong>macpro</strong> machine under <em>/mnt/downloads</em>.  Once the <em>ffmpeg</em> job starts on <strong>macpro</strong> it will be passed <em>/downloads/mymedia.mp4</em> as the input
+filename.  Well, that path does not exist on <strong>macpro</strong>, but <em>mymedia.mp4</em> IS accessible as <em>/mnt/downloads/mymedia.mp4</em>. So we setup
+the <em>path-substitutions</em> patterns to account for this. Now, the input pathname will be changed from
+<em>/downloads/</em>… to <em>/mnt/downloads/</em>…</p>
+<p>Likewise, a file under <em>/volume1/media/tv/series/season1/show.s01e01.mp4</em> is accessible on <strong>macpro</strong> as
+<em>/mnt/media/tv/series/season1/show.s01e01.mp4</em>.</p>
+<p>Whew, hope that was clear enough.</p>
+<p>Continuing on down the <strong>macpro</strong> configuration, and others, you’ll see <em>profiles:</em>. This indicates a list of profiles suitable for this
+host. Note in this example that <em>h264</em> and <em>hevc</em> are given. These are basic profiles that perform CPU-based encoding without assistance
+since this host is incapable of any hardware encoding.  If I put <em>hevc_cuda</em> as a supported profile the job would fail since this host
+has no nVidia GPU. So this host will only be called on to encode video matching those profiles.</p>
+<p>Skipping down to the <strong>gamer</strong> host we see a type of <em>streaming</em>. The streaming type is not encouraged but there in case you cannot or will not
+map a server drive to the host.
+Notice there are no <em>path-substitutions</em>.  This is because for <em>streaming</em> they are not used.
+Hosts of the <em>streaming</em> type will be sent the media file via scp (secured copy) to the <em>working_dir</em> folder, <em>ffmpeg</em> will encode the file into the same
+the same folder, and the result will be copied back to the server. Finally, the 2 artifacts in <em>working_dir</em> are removed.</p>
+<p>Notice the differences between the <strong>gamer</strong> and <strong>family</strong> machines.  They are both Windows 10 but are configured very differently. This
+is discussed in detail in Windows Installation. But the driving difference is that <strong>gamer</strong> only has Microsoft’s own OpenSSH server
+installed, along with Windows <em>ffmpeg</em>, but the <strong>family</strong> host uses WSL. Both type get the job done, but with caveats. For Windows OpenSSH,
+the remote shell can access the c: drive normally (see <strong>gamer</strong> ffmpeg path). For WSL, the path is convoluted (see <strong>family</strong> ffmpeg path).</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pytranscoder</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concurrency.html">Concurrency</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#ssh">SSH</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#linux">Linux</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#macos">MacOS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#windows-10-11">Windows 10/11</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#pytranscoder-agent">Pytranscoder Agent</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-definition">Cluster Definition</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running-local.html">Running (Local)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running-clustered.html">Running (Clustered)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/includes.html">Using includes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/mixins.html">Using Mixins</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="concurrency.html" title="previous chapter">Concurrency</a></li>
+      <li>Next: <a href="../usage/running-local.html" title="next chapter">Running (Local)</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019-2023, Marshall L Smith Jr.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/configuration/cluster.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

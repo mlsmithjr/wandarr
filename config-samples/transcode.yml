@@ -1,0 +1,255 @@
+
+##########################################
+# global configuration section
+##########################################
+config:
+  ffmpeg: '/opt/homebrew/bin/ffmpeg'
+  colorize: yes       # use colors for text output
+  fls_path: '/tmp'    # fast local storage for work files, ideally an SSD (optional)
+
+#
+# Cluster machine definitions. Must have at least 1, usually the local machine
+#
+cluster:
+  homeserver:
+    os: linux
+    type: mounted
+    working_dir: /tmp
+    ip: 192.168.2.64
+    user: mark
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    path-substitutions:
+      - '/Volumes/media /mnt/beelink/media/'
+      - '/mnt/merger/media/ /mnt/server/media/'
+      - '/mnt/downloads/ /mnt/server/downloads/'
+      - '/mnt/m2/downloads/ /mnt/server/downloads/'
+    status: enabled
+
+  winpc:
+    os: win10
+    type: streaming
+    ip: 192.168.2.61
+    user: mark
+    ffmpeg: 'c:\ffmpeg\bin\ffmpeg.exe'
+    engines:
+      - cuda
+      - qsv
+    working_dir: 'c:/temp'
+    path-substitutions:
+      - - '/Volumes/media n:'
+      - '/mnt/merger/media/video/ n:video\'
+      - '/mnt/downloads/ z:\'
+    status: enabled
+
+  backupserver:
+    os: linux
+    type: mounted
+    working_dir: /tmp
+    ip: 192.168.2.65
+    user: mark
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    path-substitutions:
+      - '/Volumes/media /mnt/beelink/media/'
+      - '/mnt/merger/media/ /mnt/server/media/'
+      - '/mnt/downloads/ /mnt/server/downloads/'
+      - '/mnt/m2/downloads/ /mnt/server/downloads/'
+    status: enabled
+
+  workstation:
+    os: linux
+    type: mounted
+    working_dir: /tmp
+    ip: 192.168.2.63
+    user: mark
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - cuda
+      - qsv
+    path-substitutions:
+      - '/Volumes/media /mnt/beelink/media/'
+      - '/mnt/merger/media/ /mnt/server/media/'
+      - '/mnt/downloads/ /mnt/server/downloads/'
+      - '/mnt/m2/downloads/ /mnt/server/downloads/'
+    status: enabled
+
+  mbp:
+    os: macos
+    type: local
+    working_dir: /tmp
+    ffmpeg: '/opt/homebrew/bin/ffmpeg'
+    engines:
+      - vt
+    status: enabled
+
+engines:
+  vt:
+    quality:
+      medium: "-c:v hevc_videotoolbox -preset medium -qp 23 -b:v 6000K -f matroska -max_muxing_queue_size 1024"
+      high:  "-c:v hevc_videotoolbox -preset medium -qp 21 -b:v 8000K -f matroska -max_muxing_queue_size 1024"
+
+  qsv:
+    quality:
+      medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+
+  cuda:
+    quality:
+      medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
+
+
+templates:
+  tv:
+    cli:
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    video-quality: high
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 20
+    extension: '.mkv'
+
+  tv_anime:
+    cli:
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    video-quality: medium
+    audio-lang: "eng jpn"
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 20
+    extension: '.mkv'
+
+  qsv:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  qsv4k:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 20 -b:v 30M -f matroska -max_muxing_queue_size 2048"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  qsv_medium:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 4000K -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a ac3 -b:a 768k"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  qsv_medium_audio_pass:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 4000K -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 20
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  qsv_anime:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 3000K -f matroska"
+      audio-codec: "-c:a ac3 -b:a 768k"
+      subtitles: "-c:s copy"
+    audio-lang: "eng jpn"
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  qsv_anime_vidonly:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 3000K -f matroska"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: "eng jpn"
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    queue: "qsv"
+    extension: '.mkv'
+
+  tcuda:
+    cli:
+      video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 20
+    threshold_check: 30
+    queue: "cuda"
+    extension: '.mkv'
+
+  tcuda-medium:
+    cli:
+      video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 5M -profile:v main -maxrate:v 5M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a ac3 -b:a 768k"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 20
+    threshold_check: 30
+    queue: "cuda"
+    extension: '.mkv'
+
+  tcuda-medium-audio-pass:
+    cli:
+      video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 5M -profile:v main -maxrate:v 5M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 20
+    threshold_check: 30
+    queue: "cuda"
+    extension: '.mkv'
+
+  scrub:
+    cli:
+      video-codec: "-c:v copy -f matroska"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 0
+    threshold_check: 100
+    extension: '.mkv'
+
+  scrub_anime:
+    cli:
+      video-codec: "-c:v copy -f matroska"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: "eng jpn"
+    subtitle-lang: eng
+    threshold: 0
+    threshold_check: 100
+    extension: '.mkv'
+

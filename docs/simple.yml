@@ -1,0 +1,39 @@
+config:
+    ffmpeg:             '/usr/bin/ffmpeg'
+    colorize:           yes
+
+templates:
+  qsv:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    extension: '.mkv'
+
+  qsv_medium:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 4000K -f matroska -max_muxing_queue_size 1024"
+      audio-codec: "-c:a ac3 -b:a 768k"
+      subtitles: "-c:s copy"
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    extension: '.mkv'
+
+  qsv_anime:
+    cli:
+      video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 3000K -f matroska"
+      audio-codec: "-c:a ac3 -b:a 768k"
+      subtitles: "-c:s copy"
+    audio-lang: "eng jpn"
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 30
+    extension: '.mkv'
+
+

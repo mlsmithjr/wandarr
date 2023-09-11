@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Quick Start &#8212; pytranscoder 2.2.5 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Configuration" href="configuration.html" />
+    <link rel="prev" title="Installation" href="installation.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="quick-start">
+<h1>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this heading">¶</a></h1>
+<p>For simple commandline help</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytranscoder<span class="w"> </span>-h
+</pre></div>
+</div>
+<p>To get started right away, start with this configuration:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">config</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">default_queue_file</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;/tmp/queue.txt&#39;</span>
+<span class="w">    </span><span class="nt">ffmpeg</span><span class="p">:</span><span class="w">             </span><span class="s">&#39;/usr/bin/ffmpeg&#39;</span>
+<span class="w">    </span><span class="nt">colorize</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">yes</span>
+
+<span class="nt">profiles</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">x264</span><span class="p">:</span><span class="w">               </span><span class="c1"># h264 encoding (CPU only)</span>
+<span class="w">        </span><span class="nt">input_options</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">output_options</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-crf</span><span class="nv"> </span><span class="s">20&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:a</span><span class="nv"> </span><span class="s">copy&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:s</span><span class="nv"> </span><span class="s">copy&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-f</span><span class="nv"> </span><span class="s">matroska&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:v</span><span class="nv"> </span><span class="s">x264&quot;</span>
+<span class="w">        </span><span class="nt">threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">        </span><span class="nt">threshold_check</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+<span class="w">        </span><span class="nt">extension</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;.mkv&#39;</span>
+
+<span class="w">    </span><span class="c1"># may be out of date by now</span>
+<span class="w">    </span><span class="nt">hevc_cuda</span><span class="p">:</span><span class="w">                  </span><span class="c1"># nVidia CUDA HEVC encoding</span>
+<span class="w">        </span><span class="nt">input_options</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-hwaccel</span><span class="nv"> </span><span class="s">cuvid&quot;</span><span class="w">        </span><span class="c1"># REQUIRED for CUDA</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:v</span><span class="nv"> </span><span class="s">h264_cuvid&quot;</span><span class="w">       </span><span class="c1"># hardware decoding too</span>
+<span class="w">        </span><span class="nt">output_options</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-crf</span><span class="nv"> </span><span class="s">20&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:a</span><span class="nv"> </span><span class="s">copy&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:s</span><span class="nv"> </span><span class="s">copy&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-f</span><span class="nv"> </span><span class="s">matroska&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c:v</span><span class="nv"> </span><span class="s">hevc_nvenc&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-profile:v</span><span class="nv"> </span><span class="s">main&quot;</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-preset</span><span class="nv"> </span><span class="s">medium&quot;</span>
+<span class="w">        </span><span class="nt">extension</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;.mkv&#39;</span>
+<span class="w">        </span><span class="nt">threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">        </span><span class="nt">threshold_check</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+
+<span class="nt">rules</span><span class="p">:</span>
+
+<span class="w">    </span><span class="s">&#39;half-hour</span><span class="nv"> </span><span class="s">videos&#39;</span><span class="p p-Indicator">:</span>
+<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;x264&#39;</span><span class="w">             </span><span class="c1"># use profile called &quot;x264&quot;</span>
+<span class="w">        </span><span class="nt">criteria</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">filesize_mb</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&gt;500&#39;</span><span class="w">     </span><span class="c1"># 400mb file size or greater</span>
+<span class="w">            </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;31&#39;</span><span class="w">          </span><span class="c1"># 30 minutes or less runtime</span>
+<span class="w">            </span><span class="nt">vcodec</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;!hevc&#39;</span><span class="w">         </span><span class="c1"># NOT hevc encoded video</span>
+
+<span class="w">    </span><span class="s">&#39;small</span><span class="nv"> </span><span class="s">enough</span><span class="nv"> </span><span class="s">already&#39;</span><span class="p p-Indicator">:</span><span class="w">       </span><span class="c1"># skip if &lt;2.5g size, between 720p and 1080p, and between 30 and 64 minutes long.</span>
+<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SKIP</span><span class="w">             </span><span class="c1"># transcoding these will probably cause a noticeable quality loss so skip.</span>
+<span class="w">        </span><span class="nt">criteria</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">filesize_mb</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;2500&#39;</span><span class="w">    </span><span class="c1"># less than 2.5 gigabytes</span>
+<span class="w">            </span><span class="nt">res_height</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;720-1081&#39;</span><span class="w">  </span><span class="c1"># 1080p, allowing for random oddball resolutions still in the HD range</span>
+<span class="w">            </span><span class="nt">runtime</span><span class="p">:</span><span class="w">  </span><span class="s">&#39;35-65&#39;</span><span class="w">       </span><span class="c1"># between 35 and 65 minutes long</span>
+
+<span class="w">    </span><span class="s">&#39;default&#39;</span><span class="p p-Indicator">:</span>
+<span class="w">        </span><span class="nt">profile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hevc_cuda</span>
+<span class="w">        </span><span class="nt">criteria</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">vcodec</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;!hevc&#39;</span>
+</pre></div>
+</div>
+<p>Copy this file and save as <strong>$HOME/.transcode.yml</strong>, the default location pytranscoder will look for its configuration.
+Pick a video file to test with. Let’s refer to it as “myvideo.mp4”.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytranscoder<span class="w"> </span>--dry-run<span class="w"> </span>myvideo.mp4
+</pre></div>
+</div>
+<p>You will see something like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>----------------------------------------
+Filename<span class="w"> </span>:<span class="w"> </span>myvideo.mp4
+Profile<span class="w">  </span>:<span class="w"> </span>hevc_cuda
+ffmpeg<span class="w">   </span>:<span class="w"> </span>-y<span class="w"> </span>-hwaccel<span class="w"> </span>cuvid<span class="w"> </span>-c:v<span class="w"> </span>h264_cuvid<span class="w"> </span>-i<span class="w"> </span>myvideo.mp4<span class="w"> </span>-crf<span class="w"> </span><span class="m">20</span><span class="w"> </span>-c:a<span class="w"> </span>copy<span class="w"> </span>-c:s<span class="w"> </span>copy<span class="w"> </span>-f<span class="w"> </span>matroska<span class="w"> </span>-c:v<span class="w"> </span>hevc_nvenc<span class="w"> </span>-profile:v<span class="w"> </span>main<span class="w"> </span>-preset<span class="w"> </span>medium<span class="w"> </span>myvideo.mkv.tmp
+</pre></div>
+</div>
+<p>This shows you the video to be encoded, the profile selected (from .transcoder.yml), and the ffmpeg command line to be used.</p>
+<p>Use the <strong>–dry-run</strong> flag whenever you change your configuration to test that things work the way you intend. To run for real, omit –dry-run.  You’ll see something like this:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.51x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">81</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">   </span><span class="m">8</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.45x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">81</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">16</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.46x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">25</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.47x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">81</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">33</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.47x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">42</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.45x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">81</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">50</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.46x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">59</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.45x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">68</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.48x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">76</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w">  </span><span class="m">8</span>.5x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">85</span>%
+myvideo.mkv:<span class="w"> </span>speed:<span class="w"> </span><span class="m">8</span>.49x,<span class="w"> </span>comp:<span class="w"> </span><span class="m">82</span>%,<span class="w"> </span><span class="k">done</span>:<span class="w">  </span><span class="m">94</span>%
+Finished<span class="w"> </span>myvideo.mkv
+</pre></div>
+</div>
+<p><strong>Speed</strong> is how fast your machine is encoding video, <strong>comp</strong> is the compression percentage, and <strong>done</strong> how much has been processed.
+Your original myvideo.mkv will be replaced with a new version.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Should you wish to do test encodes without destroying the original, use the <strong>-k</strong> (keep) flag. The encode job will leave behind <em>myvideo.mkv.tmp</em>, for example.</p>
+</div>
+<p>Now you are ready to tweak your configuration with profiles and rules to suit your needs.</p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">pytranscoder</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concurrency.html">Concurrency</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster.html">Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster.html#ssh">SSH</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster.html#pytranscoder-agent">Pytranscoder Agent</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running-local.html">Running (Local)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/running-clustered.html">Running (Clustered)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/includes.html">Using includes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/mixins.html">Using Mixins</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="installation.html" title="previous chapter">Installation</a></li>
+      <li>Next: <a href="configuration.html" title="next chapter">Configuration</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019-2023, Marshall L Smith Jr.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/configuration/quickstart.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
