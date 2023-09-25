@@ -39,7 +39,7 @@ class MediaInfo:
         runtime = "{:0>8}".format(str(timedelta(seconds=self.runtime)))
         audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a['default'] for a in self.audio]
         audio = '(' + ','.join(audios) + ')'
-        subs = [s['stream'] + ':' + s['lang'] + ':' + s['default'] for s in self.subtitle]
+        subs = [s['stream'] + ':' + s['lang'] + ':' + s.get('default', '') for s in self.subtitle]
         sub = '(' + ','.join(subs) + ')'
         buf = f"{self.path}, {self.filesize_mb}mb, {self.fps} fps, {self.res_width}x{self.res_height}, {runtime}, {self.vcodec}, audio={audio}, sub={sub}"
         return buf

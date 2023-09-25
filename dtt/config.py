@@ -22,7 +22,7 @@ class Engine:
 class ConfigFile:
 
     def __init__(self, configuration: Any):
-        """load configuration file (defaults to $HOME/.transcode.yml)"""
+        """load configuration file (defaults to $HOME/.dtt.yml)"""
         self.settings: Dict = {}
         self.templates: Dict[str, Template] = {}
         self.engines: Dict[str, Engine] = {}
@@ -64,6 +64,9 @@ class ConfigFile:
 
     def colorize(self) -> bool:
         return self.settings.get('colorize', 'no').lower() == 'yes'
+
+    def rich(self) -> bool:
+        return self.settings.get("rich", "no").lower() == "yes"
 
     def has_engine(self, name) -> bool:
         return name in self.engines

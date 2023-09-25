@@ -4,7 +4,8 @@
 ##########################################
 config:
   ffmpeg: '/opt/homebrew/bin/ffmpeg'
-  colorize: yes       # use colors for text output
+  colorize: no       # use colors for text output
+  rich: yes     # use rich text library for nicer output
   fls_path: '/tmp'    # fast local storage for work files, ideally an SSD (optional)
 
 #
@@ -105,7 +106,7 @@ templates:
     cli:
       audio-codec: "-c:a copy"
       subtitles: "-c:s copy"
-    video-quality: high
+    video-select: medium
     audio-lang: eng
     subtitle-lang: eng
     threshold: 15

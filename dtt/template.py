@@ -29,8 +29,8 @@ class Template:
     def get(self, key: str):
         return self.template.get(key)
 
-    def quality(self):
-        return self.template.get("video-quality")
+    def video_select(self):
+        return self.template.get("video-select")
 
     def extension(self) -> str:
         ext = self.template.get('extension')

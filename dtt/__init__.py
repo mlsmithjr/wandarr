@@ -12,4 +12,6 @@ verbose = False
 keep_source = False
 dry_run = False
 
+console = None
+
 status_queue = Queue()

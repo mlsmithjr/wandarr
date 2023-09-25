@@ -18,6 +18,7 @@ import crayons
 
 import dtt
 from dtt import verbose
+from dtt.agent import Agent
 from dtt.config import ConfigFile
 from dtt.ffmpeg import FFmpeg
 from dtt.media import MediaInfo
@@ -184,11 +185,13 @@ class ManagedHost(Thread):
     def completed(self) -> List:
         return self._complete
 
-    def log(self, *args):
+    def log(self, message: str, style: str = None):
         self.lock.acquire()
         try:
-            msg = crayons.blue(f'({self.hostname}): ')
-            print(msg, *args)
+            msg = f"{self.hostname}): {message}"
+#            msg = crayons.blue(f'({self.hostname}): ')
+#            print(msg, *args)
+            dtt.console.print(message, style=style)
             sys.stdout.flush()
         finally:
             self.lock.release()
@@ -215,7 +218,8 @@ class ManagedHost(Thread):
         p = subprocess.Popen(ping, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
         p.communicate()
         if p.returncode != 0:
-            self.log(crayons.yellow(f'Host at address {addr} cannot be reached - skipped'))
+#            self.log(crayons.yellow(f'Host at address {addr} cannot be reached - skipped'))
+            self.log(f"Host at address {addr} cannot be reached - skipped", style="magenta")
             return False
         return True
 
@@ -226,7 +230,7 @@ class ManagedHost(Thread):
             ssh_test = subprocess.run([*self.ssh_cmd(), remote_cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      shell=False, timeout=10)
             if ssh_test.returncode != 0:
-                self.log('ssh test failed with the following output: ' + str(ssh_test.stderr))
+                self.log('ssh test failed with the following output: ' + str(ssh_test.stderr), style="magenta")
                 return False
             return True
         except subprocess.TimeoutExpired:
@@ -252,6 +256,23 @@ class AgentManagedHost(ManagedHost):
 
     def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
         super().__init__(hostname, props, queue, cluster)
+
+    #
+    # override the standard ssh-based host_ok for agent verification
+    #
+    def host_ok(self):
+        s = socket.socket()
+        try:
+            s.connect((self.props.ip, Agent.PORT))
+            if self._manager.verbose:
+                self.log(f"checking if remote agent at {self.props.ip} is up")
+            s.send(bytes("PING".encode()))
+            s.settimeout(5)
+            rsp = s.recv(4).decode()
+            return rsp == "PONG"
+        except Exception as e:
+            print(e)
+        return False
 
     #
     # initiate tests through here to avoid a new thread
@@ -290,20 +311,20 @@ class AgentManagedHost(ManagedHost):
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map]
 
-                #
-                # display useful information
-                #
-                self.lock.acquire()
-                try:
-                    print('-' * 40)
-                    print(f'Host     : {self.hostname} (agent)')
-                    print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
-                    print(f'Directive: {job.template.name()}')
-                    print('Command  : ' + ' '.join(cmd) + '\n')
-                finally:
-                    self.lock.release()
 
                 if dtt.dry_run:
+                    #
+                    # display useful information
+                    #
+                    self.lock.acquire()
+                    try:
+                        print('-' * 40)
+                        print(f'Host     : {self.hostname} (agent)')
+                        print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
+                        print(f'Directive: {job.template.name()}')
+                        print('Command  : ' + ' '.join(cmd) + '\n')
+                    finally:
+                        self.lock.release()
                     continue
 
                 basename = os.path.basename(job.in_path)
@@ -314,11 +335,17 @@ class AgentManagedHost(ManagedHost):
                                           'file': basename,
                                           'speed': stats['speed'],
                                           'comp': pct_comp,
-                                          'done': pct_done})
+                                          'completed': pct_done})
 
                     if job.should_abort(pct_done):
                         # compression goal (threshold) not met, kill the job and waste no more time...
-                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+                        dtt.status_queue.put({'host': 'local',
+                                              'file': basename,
+                                              'speed': f"{stats['speed']}x",
+                                              'comp': f"{pct_comp}%",
+                                              'completed': 100,
+                                              'status': "Skipped (threshold)"})
                         return True
                     return False
 
@@ -326,24 +353,38 @@ class AgentManagedHost(ManagedHost):
                 # Send to agent
                 #
                 s = socket.socket()
+                s.settimeout(5)
+
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0,
+                                      'status': 'Connect'})
 
                 if self._manager.verbose:
-                    self.log(f"connect to '{self.props.ip}'")
+                    self.log(f"connect to '{self.props.ip}'", style="info")
 
-                s.connect((self.props.ip, 9567))
+                s.connect((self.props.ip, Agent.PORT))
                 inputsize = os.path.getsize(in_path)
                 tmpdir = self.props.working_dir
                 cmd_str = "$".join(cmd)
                 hello = f"HELLO|{inputsize}|{tmpdir}|{basename}|{cmd_str}"
                 if self._manager.verbose:
-                    self.log("handshaking")
+                    self.log("handshaking with remote agent", style="info")
                 s.send(bytes(hello.encode()))
                 rsp = s.recv(1024).decode()
                 if rsp != hello:
-                    self.log("Received unexpected response from agent: " + rsp)
+                    self.log("Received unexpected response from agent: " + rsp, style="magenta'")
                     continue
                 # send the file
-                self.log(f"sending {in_path}")
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0,
+                                      'status': 'Copy'})
+#                self.log(f"sending {in_path} to agent")
                 with open(in_path, "rb") as f:
                     while True:
                         buf = f.read(1_000_000)
@@ -351,6 +392,12 @@ class AgentManagedHost(ManagedHost):
                         if len(buf) < 1_000_000:
                             break
 
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0,
+                                      'status': 'Running'})
                 job_start = datetime.datetime.now()
                 finished, stats = self.ffmpeg.monitor_agent_ffmpeg(s, log_callback, self.ffmpeg.monitor_agent)
                 job_stop = datetime.datetime.now()
@@ -363,8 +410,15 @@ class AgentManagedHost(ManagedHost):
                             tag, exitcode, sent_filesize = parts
                             filesize = int(sent_filesize)
                             tmp_file = in_path + ".tmp"
+                            dtt.status_queue.put({'host': 'local',
+                                                  'file': basename,
+                                                  'speed': '0x',
+                                                  'comp': '0%',
+                                                  'completed': 100,
+                                                  'status': 'Retrieving'})
+
                             if self._manager.verbose:
-                                self.log(f"receiving results ({filesize} bytes)")
+                                self.log(f"receiving ({filesize} bytes)")
 
                             with open(tmp_file, "wb") as out:
                                 while filesize > 0:
@@ -375,7 +429,14 @@ class AgentManagedHost(ManagedHost):
                             if not dtt.keep_source:
                                 os.unlink(in_path)
                                 os.rename(tmp_file, in_path)
-                            self.log(crayons.green(f'Finished {in_path}'))
+                                dtt.status_queue.put({'host': 'local',
+                                                      'file': basename,
+                                                      'speed': '0x',
+                                                      'comp': '0%',
+                                                      'completed': 100,
+                                                      'status': 'Complete'})
+
+#                            self.log(crayons.green(f'Finished {in_path}'))
                         elif parts[0] == "ERR":
                             self.log(f"Agent returned process error code '{parts[1]}'")
                         else:
@@ -389,17 +450,6 @@ class AgentManagedHost(ManagedHost):
                 self.log(ex)
             finally:
                 self.queue.task_done()
-
-    def host_ok(self):
-        s = socket.socket()
-        s.connect((self.props.ip, 9567))
-        s.send(bytes("PING".encode()))
-        s.settimeout(5)
-        try:
-            results = s.recv(4)
-            return results == "PONG"
-        except Exception:
-            return False
 
 
 class StreamingManagedHost(ManagedHost):
@@ -462,22 +512,29 @@ class StreamingManagedHost(ManagedHost):
                        self.converted_path(remote_out_path)]
                 cli = [*ssh_cmd, *cmd]
 
-                #
-                # display useful information
-                #
-                self.lock.acquire()  # used to synchronize threads so multiple threads don't create a jumble of output
-                try:
-                    print('-' * 40)
-                    print(f'Host     : {self.hostname} (streaming)')
-                    print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
-                    print(f'Directive: {job.template.name()}')
-                    print('ssh      : ' + ' '.join(cli) + '\n')
-                finally:
-                    self.lock.release()
-
                 if dtt.dry_run:
+                    #
+                    # display useful information
+                    #
+                    self.lock.acquire()  # used to synchronize threads so multiple threads don't create a jumble of output
+                    try:
+                        print('-' * 40)
+                        print(f'Host     : {self.hostname} (streaming)')
+                        print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
+                        print(f'Template : {job.template.name()}')
+                        print('ssh      : ' + ' '.join(cli) + '\n')
+                    finally:
+                        self.lock.release()
                     continue
 
+                basename = os.path.basename(job.in_path)
+
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0,
+                                      'status': 'Copying'})
                 #
                 # Copy source file to remote
                 #
@@ -491,7 +548,7 @@ class StreamingManagedHost(ManagedHost):
 
                 code, output = run(scp)
                 if code != 0:
-                    self.log(crayons.red('Unknown error copying source to remote - media skipped'))
+                    self.log('Unknown error copying source to remote - media skipped', style="magenta")
                     if self._manager.verbose:
                         self.log(output)
                     continue
@@ -504,16 +561,28 @@ class StreamingManagedHost(ManagedHost):
                                           'file': basename,
                                           'speed': stats['speed'],
                                           'comp': pct_comp,
-                                          'done': pct_done})
+                                          'completed': pct_done})
                     if job.should_abort(pct_done):
                         # compression goal (threshold) not met, kill the job and waste no more time...
-                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+                        dtt.status_queue.put({'host': 'local',
+                                              'file': basename,
+                                              'speed': f"{stats['speed']}x",
+                                              'comp': f"{pct_comp}%",
+                                              'completed': 100,
+                                              'status': "Skipped (threshold)"})
                         return True
                     return False
 
                 #
                 # Start remote
                 #
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0,
+                                      'status': 'Running'})
                 job_start = datetime.datetime.now()
                 code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd, log_callback)
                 job_stop = datetime.datetime.now()
@@ -538,8 +607,8 @@ class StreamingManagedHost(ManagedHost):
 
                 if code == 0:
                     if not filter_threshold(job.template, in_path, retrieved_copy_name):
-                        self.log(
-                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
+#                        self.log(
+#                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(retrieved_copy_name)
                         continue
@@ -553,7 +622,7 @@ class StreamingManagedHost(ManagedHost):
                         shutil.move(retrieved_copy_name, in_path)
                     self.log(crayons.green(f'Finished {in_path}'))
                 elif code is not None:
-                    self.log(crayons.red(f'error during remote transcode of {in_path}'))
+                    self.log(f'error during remote transcode of {in_path}', style="magenta")
                     self.log(f' Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
 
@@ -626,24 +695,29 @@ class MountedManagedHost(ManagedHost):
                        *job.template.output_options_list(self._manager.config), *stream_map,
                        f'"{remote_out_path}"']
 
-                #
-                # display useful information
-                #
-                self.lock.acquire()
-                try:
-                    print('-' * 40)
-                    print(f'Host     : {self.hostname} (mounted)')
-                    print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
-
-                    print(f'Directive: {job.template.name()}')
-                    print('ssh      : ' + ' '.join(cmd) + '\n')
-                finally:
-                    self.lock.release()
 
                 if dtt.dry_run:
+                    #
+                    # display useful information
+                    #
+                    self.lock.acquire()
+                    try:
+                        print('-' * 40)
+                        print(f'Host     : {self.hostname} (mounted)')
+                        print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
+                        print(f'Template : {job.template.name()}')
+                        print('ssh      : ' + ' '.join(cmd) + '\n')
+                    finally:
+                        self.lock.release()
                     continue
 
                 basename = os.path.basename(job.in_path)
+
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'speed': '0x',
+                                      'comp': '0%',
+                                      'completed': 0})
 
                 def log_callback(stats):
                     pct_done, pct_comp = calculate_progress(job.media_info, stats)
@@ -651,11 +725,17 @@ class MountedManagedHost(ManagedHost):
                                           'file': basename,
                                           'speed': stats['speed'],
                                           'comp': pct_comp,
-                                          'done': pct_done})
+                                          'completed': pct_done})
 
                     if job.should_abort(pct_done):
                         # compression goal (threshold) not met, kill the job and waste no more time...
-                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+                        dtt.status_queue.put({'host': 'local',
+                                              'file': basename,
+                                              'speed': f"{stats['speed']}x",
+                                              'comp': f"{pct_comp}%",
+                                              'completed': 100,
+                                              'status': "Skipped (threshold)"})
                         return True
                     return False
 
@@ -677,8 +757,8 @@ class MountedManagedHost(ManagedHost):
 
                 if code == 0:
                     if not filter_threshold(job.template, in_path, out_path):
-                        self.log(
-                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
+#                        self.log(
+#                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(out_path)
                         continue
@@ -691,7 +771,7 @@ class MountedManagedHost(ManagedHost):
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
-                    self.log(crayons.green(f'Finished {job.in_path}'))
+                    #self.log(crayons.green(f'Finished {job.in_path}'))
                 elif code is not None:
                     self.log(f'Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
@@ -754,35 +834,44 @@ class LocalHost(ManagedHost):
                        *job.template.output_options_list(self._manager.config), *stream_map,
                        remote_out_path]
 
-                #
-                # display useful information
-                #
-                self.lock.acquire()  # used to synchronize threads so multiple threads don't create a jumble of output
-                try:
-                    print('-' * 40)
-                    print(f'Host     : {self.hostname} (local)')
-                    print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
-                    print(f'Directive: {job.template.name()}')
-                    print('ffmpeg   : ' + ' '.join(cli) + '\n')
-                finally:
-                    self.lock.release()
-
                 if dtt.dry_run:
+                    #
+                    # display useful information
+                    #
+                    self.lock.acquire()
+                    try:
+                        print('-' * 40)
+                        print(f'Host     : {self.hostname} (local)')
+                        print('Filename : ' + crayons.green(os.path.basename(remote_in_path)))
+                        print(f'Template : {job.template.name()}')
+                        print('ffmpeg   : ' + ' '.join(cli) + '\n')
+                    finally:
+                        self.lock.release()
                     continue
 
                 basename = os.path.basename(job.in_path)
+
+                dtt.status_queue.put({'host': 'local',
+                                      'file': basename,
+                                      'comp': '0'})
 
                 def log_callback(stats):
                     pct_done, pct_comp = calculate_progress(job.media_info, stats)
                     dtt.status_queue.put({'host': 'local',
                                           'file': basename,
-                                          'speed': stats['speed'],
-                                          'comp': pct_comp,
-                                          'done': pct_done})
+                                          'speed': f"{stats['speed']}x",
+                                          'comp': f"{pct_comp}%",
+                                          'completed': {pct_done}})
 
                     if job.should_abort(pct_done):
                         # compression goal (threshold) not met, kill the job and waste no more time...
-                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+                        dtt.status_queue.put({'host': 'local',
+                                              'file': basename,
+                                              'speed': f"{stats['speed']}x",
+                                              'comp': f"{pct_comp}%",
+                                              'completed': 100,
+                                              'status': "Skipped (threshold)"})
                         return True
                     return False
 
@@ -804,8 +893,8 @@ class LocalHost(ManagedHost):
 
                 if code == 0:
                     if not filter_threshold(job.template, in_path, out_path):
-                        self.log(
-                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
+#                        self.log(
+#                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(out_path)
                         continue
@@ -853,7 +942,10 @@ class Cluster(Thread):
         self.lock = Cluster.terminal_lock
         self.completed: List = list()
 
+        down_hosts = []
         for host, props in config.hosts.items():
+            if host in down_hosts:
+                continue
             host_props = RemoteHostProperties(host, props)
             if not host_props.is_enabled:
                 continue
@@ -868,6 +960,8 @@ class Cluster(Thread):
                 continue
 
             for host_engine_name in host_engines:
+                if host in down_hosts:
+                    continue
                 engine = self.config.engine(host_engine_name)
                 if not engine:
                     print(f"Engine {host_engine_name} not found for host {host} - skipping")
@@ -877,48 +971,51 @@ class Cluster(Thread):
                     if qname not in self.queues:
                         self.queues[qname] = Queue()
 
-                        _h = None
-                        if host_type == 'local':
-                            _h = LocalHost(host, host_props, self.queues[qname], self)
+                    _h = None
+                    if host_type == 'local':
+                        _h = LocalHost(host, host_props, self.queues[qname], self)
+                        if not _h.validate_settings():
+                            sys.exit(1)
+                        _h.video_cli = cli
+                        self.hosts.append(_h)
+
+                    elif host_type == 'mounted':
+                        _h = MountedManagedHost(host, host_props, self.queues[qname], self)
+                        if _h.host_ok():
                             if not _h.validate_settings():
                                 sys.exit(1)
                             _h.video_cli = cli
                             self.hosts.append(_h)
-
-                        elif host_type == 'mounted':
-                            _h = MountedManagedHost(host, host_props, self.queues[qname], self)
-                            if _h.host_ok():
-                                if not _h.validate_settings():
-                                    sys.exit(1)
-                                _h.video_cli = cli
-                                self.hosts.append(_h)
-                            else:
-                                print(f"Host {host} not available - skipping")
-                                continue
-
-                        elif host_type == 'streaming':
-                            _h = StreamingManagedHost(host, host_props, self.queues[qname], self)
-                            if _h.host_ok():
-                                if not _h.validate_settings():
-                                    sys.exit(1)
-                                _h.video_cli = cli
-                                self.hosts.append(_h)
-                            else:
-                                print(f"Host {host} not available - skipping")
-                                continue
-
-                        elif host_type == 'agent':
-                            _h = AgentManagedHost(host, host_props, self.queues[qname], self)
-                            if _h.host_ok():
-                                if not _h.validate_settings():
-                                    sys.exit(1)
-                                _h.video_cli = cli
-                                self.hosts.append(_h)
-                            else:
-                                print(f"Host {host} not available - skipping")
-                                continue
                         else:
-                            print(crayons.red(f'Unknown cluster host type "{host_type}" - skipping'))
+#                            print(f"Host {host} not available - skipping")
+                            down_hosts.append(host)
+                            continue
+
+                    elif host_type == 'streaming':
+                        _h = StreamingManagedHost(host, host_props, self.queues[qname], self)
+                        if _h.host_ok():
+                            if not _h.validate_settings():
+                                sys.exit(1)
+                            _h.video_cli = cli
+                            self.hosts.append(_h)
+                        else:
+#                            print(f"Host {host} not available - skipping")
+                            down_hosts.append(host)
+                            continue
+
+                    elif host_type == 'agent':
+                        _h = AgentManagedHost(host, host_props, self.queues[qname], self)
+                        if _h.host_ok():
+                            if not _h.validate_settings():
+                                sys.exit(1)
+                            _h.video_cli = cli
+                            self.hosts.append(_h)
+                        else:
+#                            print(f"Host {host} not available - skipping")
+                            down_hosts.append(host)
+                            continue
+                    else:
+                        print(f'Unknown cluster host type "{host_type}" - skipping', style="magenta")
 
     def enqueue(self, file, template_name: str):
         """Add a media file to this cluster queue.
@@ -947,7 +1044,7 @@ class Cluster(Thread):
 
             template = self.config.templates[template_name]
 
-            video_quality = template.quality()
+            video_quality = template.video_select()
             if video_quality not in self.queues:
                 print(f"Cannot match quality '{video_quality}' to any related host engines. Make sure there is at least one host with an engine that supports this quality.")
                 sys.exit(1)
@@ -987,6 +1084,10 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
     """
     completed = list()
 
+    from rich.console import Console
+    console = Console()
+    dtt.console = console
+
     if not config.hosts:
         print('Error: no cluster defined')
         return completed
@@ -1008,28 +1109,55 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
     def sig_handler(signal, frame):
         if cluster.is_alive():
             cluster.terminate()
+        os.system("stty sane")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, sig_handler)
 
     if not testing:
 
-        busy = True
-        while busy:
-            try:
-                report = dtt.status_queue.get(block=True, timeout=2)
-                host = report['host']
-                basename = report['file']
-                speed = report['speed']
-                comp = report['comp']
-                done = report['done']
-                print(f'{host:20}|{basename}: speed: {speed}x, comp: {comp}%, done: {done:3}%')
-                sys.stdout.flush()
-                dtt.status_queue.task_done()
-            except Empty:
-                busy = False
-                if cluster.is_alive():
-                    busy = True
+        from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+
+        progress = Progress(
+            TextColumn("{task.fields[host]}"),
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+#            *Progress.get_default_columns(),
+            TextColumn("Comp={task.fields[comp]}"),
+            TextColumn("Speed={task.fields[speed]}"),
+            TextColumn("{task.fields[status]}"),
+            console = console
+        )
+        with progress:
+            tasks = {}
+
+            busy = True
+            while busy:
+                try:
+                    report = dtt.status_queue.get(block=True, timeout=2)
+                    host = report['host']
+                    basename = report['file']
+#                    speed = report['speed']
+#                    comp = report['comp']
+#                    done = int(report['completed'])
+                    if basename not in tasks:
+                        tasks[basename] = progress.add_task(f"{basename}", total=100, host = host, comp = 0, speed = 0, status = '')
+
+                    taskid = tasks[basename]
+                    # if done > 99 and not report.get("status"):
+                    #     report["status"] = "Complete"
+#                    progress.update(taskid, completed = done, speed = speed, comp = comp, status = report.get("status", ""))
+                    progress.update(taskid, **report)
+
+                    #                    print(f'{host:20}|{basename}: speed: {speed}x, comp: {comp}%, done: {done:3}%')
+#                    sys.stdout.flush()
+                    dtt.status_queue.task_done()
+                except Empty:
+                    busy = False
+                    if cluster.is_alive():
+                        busy = True
 
         #
         # wait for each cluster thread to complete

@@ -23,7 +23,7 @@ class FFmpeg(Processor):
 
     def __init__(self, ffmpeg_path: str):
         super().__init__(ffmpeg_path)
-        self.monitor_interval = 30
+        self.monitor_interval = 10
 
     def fetch_details(self, _path: str) -> MediaInfo:
         """Use ffmpeg to get media information
@@ -62,8 +62,10 @@ class FFmpeg(Processor):
         # Create a transaction log for this run, to be left behind if an error is encountered.
         #
         suffix = randint(100, 999)
-        self.log_path: PurePath = PurePath(gettempdir(), 'dtt-' + threading.current_thread().getName() + '-' +
+        self.log_path: PurePath = PurePath(gettempdir(), 'dtt-' + threading.current_thread().name + '-' +
                                            str(suffix) + '.log')
+
+        info: Dict[str, Any] = {}
 
         with open(str(self.log_path), 'w') as logfile:
             while proc.poll() is None:
@@ -73,15 +75,16 @@ class FFmpeg(Processor):
 
                 match = status_re.match(line)
                 if match is not None and len(match.groups()) >= 5:
-                    if datetime.datetime.now() > event:
-                        event = datetime.datetime.now() + diff
-                        info: Dict[str, Any] = match.groupdict()
+                    info = match.groupdict()
 
-                        info['size'] = int(info['size'].strip()) * 1024
-                        hh, mm, ss = info['time'].split(':')
-                        ss = ss.split('.')[0]
-                        info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
+                    info['size'] = int(info['size'].strip()) * 1024
+                    hh, mm, ss = info['time'].split(':')
+                    ss = ss.split('.')[0]
+                    info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
+
+                    if datetime.datetime.now() > event:
                         yield info
+                        event = datetime.datetime.now() + diff
 
         if proc.returncode == 0:
             # if we got here then everything went fine, so remove the transaction log
@@ -90,6 +93,8 @@ class FFmpeg(Processor):
             except Exception:
                 pass
             self.log_path = None
+        # yield the final info results before terminating loop
+        yield info
 
     def monitor_agent(self, sock):
         diff = datetime.timedelta(seconds=self.monitor_interval)

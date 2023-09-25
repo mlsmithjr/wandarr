@@ -6,16 +6,17 @@ import time
 
 class Agent:
 
+    PORT = 9567
+
     def run(self):
         s = socket.socket()
-        port = 9567
 
-        s.bind(("", port))
+        s.bind(("", PORT))
 
         s.listen(1)
 
         while True:
-            print(f"listening on port {port}...")
+            print(f"listening on port {PORT}...")
             c, addr = s.accept()
             try:
                 print('got connection from addr', addr)
