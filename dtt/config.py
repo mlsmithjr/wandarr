@@ -62,11 +62,8 @@ class ConfigFile:
     def fls_path(self) -> str:
         return self.settings.get('fls_path', None)
 
-    def colorize(self) -> bool:
-        return self.settings.get('colorize', 'no').lower() == 'yes'
-
     def rich(self) -> bool:
-        return self.settings.get("rich", "no").lower() == "yes"
+        return self.settings.get("rich", False)
 
     def has_engine(self, name) -> bool:
         return name in self.engines

@@ -2,10 +2,9 @@
 import glob
 import os
 import sys
-from typing import List, Optional
+from typing import List
 import argparse
 
-import crayons
 import dtt
 
 from dtt import __version__
@@ -145,11 +144,6 @@ def start():
         agent = Agent()
         agent.run()
         sys.exit(0)
-
-    if not configfile.colorize:
-        crayons.disable()
-    else:
-        crayons.enable()
 
     if len(files) == 0:
         print(crayons.yellow(f'No files - nothing to do'))

@@ -3,8 +3,7 @@
 # global configuration section
 ##########################################
 config:
-  ffmpeg: '/opt/homebrew/bin/ffmpeg'
-  colorize: no       # use colors for text output
+  ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
   rich: yes     # use rich text library for nicer output
   fls_path: '/tmp'    # fast local storage for work files, ideally an SSD (optional)
 
@@ -22,7 +21,8 @@ cluster:
     engines:
       - qsv
     path-substitutions:
-      - '/Volumes/media /mnt/beelink/media/'
+      - '/Volumes/media-1/ /mnt/beelink/media/'
+      - '/Volumes/media/ /mnt/beelink/media/'
       - '/mnt/merger/media/ /mnt/server/media/'
       - '/mnt/downloads/ /mnt/server/downloads/'
       - '/mnt/m2/downloads/ /mnt/server/downloads/'

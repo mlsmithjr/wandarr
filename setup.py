@@ -26,7 +26,7 @@ setuptools.setup(
     url='https://github.com/mlsmithjr/dtt',
     data_files=[('share/doc/dtt', ['README.md', 'Cluster.md', 'config-samples/transcode.yml' ])],
     packages=['dtt'],
-    install_requires=['pyyaml >= 5.1', 'crayons'],
+    install_requires=['pyyaml >= 5.1', 'rich'],
     entry_points={"console_scripts": ["dtt=dtt.transcode:main"]},
     classifiers=[
       'Programming Language :: Python :: 3',

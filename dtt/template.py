@@ -1,6 +1,8 @@
 
 from typing import Dict, List, Any
 
+import dtt
+
 
 class Template:
     def __init__(self, name: str, definition: Dict):
@@ -79,6 +81,11 @@ class Template:
             seq_list.append('-map')
             seq_list.append(f'0:{seq}')
 
+        if len(includes) == 0:
+            if dtt.console:
+                dtt.console.print("Language filtering must preserve at least 1 track - skipping", style="magenta")
+                return None
+
         if default_reassign:
             defl = None
             if len(includes) > 1:
@@ -108,4 +115,6 @@ class Template:
         seq_list.append(f'0:{video_stream}')
         audio_streams = self._map_streams("a", audio)
         subtitle_streams = self._map_streams("s", subtitle)
+        if not audio_streams:
+            return None
         return seq_list + audio_streams + subtitle_streams
