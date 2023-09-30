@@ -21,7 +21,7 @@ cluster:
     engines:
       - qsv
     path-substitutions:
-      - '/Volumes/media-1/ /mnt/beelink/media/'
+      - '/Volumes/USB11/ /mnt/beelink/media/'
       - '/Volumes/media/ /mnt/beelink/media/'
       - '/mnt/merger/media/ /mnt/server/media/'
       - '/mnt/downloads/ /mnt/server/downloads/'
@@ -30,16 +30,16 @@ cluster:
 
   winpc:
     os: win10
-    type: streaming
+    type: agent
     ip: 192.168.2.61
     user: mark
     ffmpeg: 'c:\ffmpeg\bin\ffmpeg.exe'
     engines:
       - cuda
-      - qsv
     working_dir: 'c:/temp'
     path-substitutions:
-      - - '/Volumes/media n:'
+      - '/Volumes/media m:'
+      - '/Volumes/USB11/media m:'
       - '/mnt/merger/media/video/ n:video\'
       - '/mnt/downloads/ z:\'
     status: enabled
@@ -98,7 +98,7 @@ engines:
 
   cuda:
     quality:
-      medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
+      medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -b_ref_mode 0 -f matroska -max_muxing_queue_size 1024"
 
 
 templates:

@@ -11,12 +11,12 @@ class Agent:
     def run(self):
         s = socket.socket()
 
-        s.bind(("", PORT))
+        s.bind(("", self.PORT))
 
         s.listen(1)
 
         while True:
-            print(f"listening on port {PORT}...")
+            print(f"listening on port {self.PORT}...")
             c, addr = s.accept()
             try:
                 print('got connection from addr', addr)
@@ -49,7 +49,9 @@ class Agent:
 
                     with open(output_filename, "wb") as f:
                         while filesize > 0:
-                            chunk = c.recv(min(1_000_000, filesize))
+                            chunk = c.recv(min(4096, filesize))
+                            if len(chunk) == 0:
+                                break
                             filesize -= len(chunk)
                             f.write(chunk)
 
@@ -74,7 +76,6 @@ class Agent:
 
                             response = c.recv(4)
                             confirmation = response.decode()
-                            print(confirmation)
                             if confirmation == "PING":
                                 # ping received out of context, ignore
                                 continue

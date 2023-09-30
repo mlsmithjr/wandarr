@@ -101,9 +101,6 @@ class AgentManagedHost(ManagedHost):
 #                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
                         dtt.status_queue.put({'host': self.hostname,
                                               'file': basename,
-                                              'speed': f"{stats['speed']}x",
-                                              'comp': f"{pct_comp}%",
-                                              'completed': 100,
                                               'status': "Skipped (threshold)"})
                         return True
                     return False
@@ -112,7 +109,7 @@ class AgentManagedHost(ManagedHost):
                 # Send to agent
                 #
                 s = socket.socket()
-                s.settimeout(5)
+                #s.settimeout(10)
 
                 dtt.status_queue.put({'host': self.hostname,
                                       'file': basename,
@@ -137,13 +134,13 @@ class AgentManagedHost(ManagedHost):
                 # send the file
                 dtt.status_queue.put({'host': self.hostname,
                                       'file': basename,
-                                      'status': 'Copy'})
+                                      'status': 'Copying...'})
 #                self.log(f"sending {in_path} to agent")
                 with open(in_path, "rb") as f:
                     while True:
-                        buf = f.read(1_000_000)
+                        buf = f.read(4096)
                         s.send(buf)
-                        if len(buf) < 1_000_000:
+                        if len(buf) < 4096:
                             break
 
                 dtt.status_queue.put({'host': self.hostname,

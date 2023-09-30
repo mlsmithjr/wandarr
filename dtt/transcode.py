@@ -138,15 +138,15 @@ def start():
     #                 files.append((f, template))
     #         arg += 1
 
-    configfile = ConfigFile(configfile_name)
-
     if agent_mode:
         agent = Agent()
         agent.run()
         sys.exit(0)
 
+    configfile = ConfigFile(configfile_name)
+
     if len(files) == 0:
-        print(crayons.yellow(f'No files - nothing to do'))
+        print(f'No files - nothing to do')
         sys.exit(0)
 
     # add template to each file
