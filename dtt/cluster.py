@@ -235,6 +235,7 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
                 TextColumn("{task.fields[status]}"),
                 console = dtt.console
             )
+            dtt.console.print()
             with progress:
                 tasks = {}
 
@@ -242,12 +243,15 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
                 while busy:
                     try:
                         report = dtt.status_queue.get(block=True, timeout=2)
-                        host = report['host']
+                        host = "[bold]" + report['host'] + "[/bold]"
                         basename = report['file']
                         if basename not in tasks:
                             tasks[basename] = progress.add_task(f"{basename}", total=100, host = host, comp = 0, speed = 0, status = '')
 
                         taskid = tasks[basename]
+                        # add an emoji to call attention to the skipped job
+                        if "status" in report and "Skipped" in report["status"]:
+                            report["status"] = ":stop_sign: " + report["status"]
                         # if done > 99 and not report.get("status"):
                         #     report["status"] = "Complete"
     #                    progress.update(taskid, completed = done, speed = speed, comp = comp, status = report.get("status", ""))

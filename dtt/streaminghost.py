@@ -58,12 +58,16 @@ class StreamingManagedHost(ManagedHost):
                 # build remote commandline
                 #
                 video_options = self.video_cli.split(" ")
-                stream_map = []
-                if job.media_info.is_multistream() and self._manager.config.automap:
-                    stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                                                         job.media_info.subtitle)
-                    if not stream_map:
-                        continue            # require at least 1 audio track
+
+                stream_map = super().map_streams(job, self._manager.config)
+                if not stream_map:
+                    continue
+                # stream_map = []
+                # if job.media_info.is_multistream() and self._manager.config.automap:
+                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
+                #                                          job.media_info.subtitle)
+                #     if not stream_map:
+                #         continue            # require at least 1 audio track
                 cmd = ['-y', *job.template.input_options_list(), '-i', self.converted_path(remote_in_path),
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map,

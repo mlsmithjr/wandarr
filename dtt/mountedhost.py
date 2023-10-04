@@ -54,67 +54,38 @@ class MountedManagedHost(ManagedHost):
                 remote_in_path = self.converted_path(remote_in_path)
                 remote_out_path = self.converted_path(remote_out_path)
 
-                stream_map = []
-                if job.media_info.is_multistream() and self._manager.config.automap:
-                    stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                                                         job.media_info.subtitle)
-                    if not stream_map:
-                        continue            # require at least 1 audio track
+                stream_map = super().map_streams(job, self._manager.config)
+                if not stream_map:
+                    continue
+
+                # stream_map = []
+                # if job.media_info.is_multistream() and self._manager.config.automap:
+                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
+                #                                          job.media_info.subtitle)
+                #     if not stream_map:
+                #         continue            # require at least 1 audio track
                 cmd = ['-y', *job.template.input_options_list(), '-i', f'"{remote_in_path}"',
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map,
                        f'"{remote_out_path}"']
 
-                if dtt.dry_run:
-                    #
-                    # display useful information
-                    #
-                    self.lock.acquire()
-                    try:
-                        print('-' * 40)
-                        print(f'Host     : {self.hostname} (mounted)')
-                        print('Filename : ' + os.path.basename(remote_in_path))
-                        print(f'Template : {job.template.name()}')
-                        print(f'Queue   : {self.queue}')
-                        print('ssh      : ' + ' '.join(cmd) + '\n')
-                    finally:
-                        self.lock.release()
-                    continue
-
                 basename = os.path.basename(job.in_path)
+
+                if super().dump_job_info(basename, cli, job.template.name()):
+                    continue
 
                 dtt.status_queue.put({'host': self.hostname,
                                       'file': basename,
                                       'completed': 0})
-
-                def log_callback(stats):
-                    pct_done, pct_comp = calculate_progress(job.media_info, stats)
-                    dtt.status_queue.put({'host': self.hostname,
-                                          'file': basename,
-                                          'speed': f"{stats['speed']}x",
-                                          'comp': f"{pct_comp}%",
-                                          'completed': pct_done})
-
-                    if job.should_abort(pct_done):
-                        # compression goal (threshold) not met, kill the job and waste no more time...
-#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
-                        dtt.status_queue.put({'host': 'local',
-                                              'file': basename,
-                                              'speed': f"{stats['speed']}x",
-                                              'comp': f"{pct_comp}%",
-                                              'completed': 100,
-                                              'status': "Skipped (threshold)"})
-                        return True
-                    return False
-
                 #
                 # Start remote
                 #
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd, log_callback)
+                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
+                                              super().callback_wrapper(basename, job))
                 job_stop = datetime.datetime.now()
 
-                print(f"host {self.hostname} done with code {code}")
+                #print(f"host {self.hostname} done with code {code}")
                 #
                 # process completed, check results and finish
                 #

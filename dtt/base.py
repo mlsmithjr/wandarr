@@ -10,7 +10,10 @@ from dtt.config import ConfigFile
 from dtt.ffmpeg import FFmpeg
 from dtt.media import MediaInfo
 from dtt.template import Template
-from dtt.utils import get_local_os_type
+from dtt.utils import get_local_os_type, calculate_progress
+
+if dtt.console:
+    from rich import print
 
 
 class RemoteHostProperties:
@@ -127,9 +130,9 @@ class EncodeJob:
         self.media_info = info
         self.template = template
 
-    def should_abort(self, pct_comp) -> bool:
+    def should_abort(self, pct_done, pct_comp) -> bool:
         if self.template.threshold_check() < 100:
-            return self.template.threshold_check() <= pct_comp < self.template.threshold()
+            return pct_done >= self.template.threshold_check() and pct_comp < self.template.threshold()
         return False
 
 
@@ -175,9 +178,9 @@ class ManagedHost(Thread):
     def log(self, message: str, style: str = None):
         self.lock.acquire()
         try:
-            msg = f"{self.hostname}): {message}"
+            msg = f"{self.hostname:20}: {message}"
             if dtt.console:
-                dtt.console.print(message, style=style)
+                dtt.console.print(":warning: " + msg, style=style)
             else:
                 print(message)
             sys.stdout.flush()
@@ -236,3 +239,49 @@ class ManagedHost(Thread):
 
     def terminate(self):
         pass
+
+    def map_streams(self, job: EncodeJob, config: ConfigFile):
+        if job.media_info.is_multistream() and config.automap:
+            stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
+                                                 job.media_info.subtitle)
+            return stream_map
+        return []
+
+    def callback_wrapper(self, basename: str, job: EncodeJob):
+        def log_callback(stats):
+            pct_done, pct_comp = calculate_progress(job.media_info, stats)
+            dtt.status_queue.put({'host': self.hostname,
+                                  'file': basename,
+                                  'speed': f"{stats['speed']}x",
+                                  'comp': f"{pct_comp}%",
+                                  'completed': pct_done})
+
+            if job.should_abort(pct_done, pct_comp):
+                # compression goal (threshold) not met, kill the job and waste no more time...
+                # self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
+                dtt.status_queue.put({'host': self.hostname,
+                                      'file': basename,
+                                      'speed': f"{stats['speed']}x",
+                                      'comp': f"{pct_comp}%",
+                                      'completed': 100,
+                                      'status': "Skipped (threshold)"})
+                return True
+            return False
+        return log_callback
+
+    def dump_job_info(self, basename, cli, template_name):
+        if dtt.dry_run:
+            #
+            # display useful information
+            #
+            self.lock.acquire()
+            try:
+                print('-' * 40)
+                print(f'Host     : {self.hostname} ({self.__name__})')
+                print('Filename : ' + basename)
+                print(f'Template : {template_name}')
+                print('ffmpeg   : ' + ' '.join(cli) + '\n')
+                return True
+            finally:
+                self.lock.release()
+        return False

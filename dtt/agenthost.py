@@ -19,7 +19,11 @@ class AgentManagedHost(ManagedHost):
     # override the standard ssh-based host_ok for agent verification
     #
     def host_ok(self):
+        if not super().ping_test_ok():
+            return False
+
         s = socket.socket()
+        s.settimeout(2)
         try:
             s.connect((self.props.ip, Agent.PORT))
             if self._manager.verbose:
@@ -29,7 +33,10 @@ class AgentManagedHost(ManagedHost):
             rsp = s.recv(4).decode()
             return rsp == "PONG"
         except Exception as e:
-            print(e)
+            if dtt.console:
+                dtt.console.print(f":warning: Agent not running on {self.props.ip}")
+            else:
+                print(f"Agent not running on {self.props.ip}")
         return False
 
     #
@@ -60,12 +67,16 @@ class AgentManagedHost(ManagedHost):
                 remote_in_path = in_path
 
                 video_options = self.video_cli.split(" ")
-                stream_map = []
-                if job.media_info.is_multistream() and self._manager.config.automap:
-                    stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                                                         job.media_info.subtitle)
-                    if not stream_map:
-                        continue            # require at least 1 audio track
+                stream_map = super().map_streams(job, self._manager.config)
+                if not stream_map:
+                    continue
+                #
+                # stream_map = []
+                # if job.media_info.is_multistream() and self._manager.config.automap:
+                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
+                #                                          job.media_info.subtitle)
+                #     if not stream_map:
+                #         continue            # require at least 1 audio track
                 cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map]
