@@ -1,6 +1,7 @@
 import os
 import datetime
 import shutil
+import traceback
 from queue import Queue
 from tempfile import gettempdir
 
@@ -74,22 +75,9 @@ class StreamingManagedHost(ManagedHost):
                        self.converted_path(remote_out_path)]
                 cli = [*ssh_cmd, *cmd]
 
-                if dtt.dry_run:
-                    #
-                    # display useful information
-                    #
-                    self.lock.acquire()  # used to synchronize threads so multiple threads don't create a jumble of output
-                    try:
-                        print('-' * 40)
-                        print(f'Host     : {self.hostname} (streaming)')
-                        print('Filename : ' + os.path.basename(remote_in_path))
-                        print(f'Template : {job.template.name()}')
-                        print('ssh      : ' + ' '.join(cli) + '\n')
-                    finally:
-                        self.lock.release()
-                    continue
-
                 basename = os.path.basename(job.in_path)
+
+                super().dump_job_info(job, cli)
 
                 dtt.status_queue.put({'host': 'local',
                                       'file': basename,
@@ -117,25 +105,6 @@ class StreamingManagedHost(ManagedHost):
 
                 basename = os.path.basename(job.in_path)
 
-                def log_callback(stats):
-                    pct_done, pct_comp = calculate_progress(job.media_info, stats)
-                    dtt.status_queue.put({'host': self.hostname,
-                                          'file': basename,
-                                          'speed': stats['speed'],
-                                          'comp': pct_comp,
-                                          'completed': pct_done})
-                    if job.should_abort(pct_done):
-                        # compression goal (threshold) not met, kill the job and waste no more time...
-#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
-                        dtt.status_queue.put({'host': 'local',
-                                              'file': basename,
-                                              'speed': f"{stats['speed']}x",
-                                              'comp': f"{pct_comp}%",
-                                              'completed': 100,
-                                              'status': "Skipped (threshold)"})
-                        return True
-                    return False
-
                 #
                 # Start remote
                 #
@@ -144,7 +113,8 @@ class StreamingManagedHost(ManagedHost):
                                       'completed': 0,
                                       'status': 'Running'})
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd, log_callback)
+                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
+                                              super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
                 #
@@ -196,5 +166,7 @@ class StreamingManagedHost(ManagedHost):
                 else:
                     self.run_process([*ssh_cmd, f'"rm {remote_out_path}"'])
 
+            except Exception as ex:
+                print(traceback.format_exc())
             finally:
                 self.queue.task_done()

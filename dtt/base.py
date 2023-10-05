@@ -247,11 +247,13 @@ class ManagedHost(Thread):
             return stream_map
         return []
 
-    def callback_wrapper(self, basename: str, job: EncodeJob):
+    def callback_wrapper(self, job: EncodeJob):
         def log_callback(stats):
+            if not stats:
+                return
             pct_done, pct_comp = calculate_progress(job.media_info, stats)
             dtt.status_queue.put({'host': self.hostname,
-                                  'file': basename,
+                                  'file': os.path.basename(job.in_path),
                                   'speed': f"{stats['speed']}x",
                                   'comp': f"{pct_comp}%",
                                   'completed': pct_done})
@@ -260,7 +262,7 @@ class ManagedHost(Thread):
                 # compression goal (threshold) not met, kill the job and waste no more time...
                 # self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
                 dtt.status_queue.put({'host': self.hostname,
-                                      'file': basename,
+                                      'file': os.path.basename(job.in_path),
                                       'speed': f"{stats['speed']}x",
                                       'comp': f"{pct_comp}%",
                                       'completed': 100,
@@ -269,7 +271,7 @@ class ManagedHost(Thread):
             return False
         return log_callback
 
-    def dump_job_info(self, basename, cli, template_name):
+    def dump_job_info(self, job: EncodeJob, cli):
         if dtt.dry_run:
             #
             # display useful information
@@ -278,8 +280,8 @@ class ManagedHost(Thread):
             try:
                 print('-' * 40)
                 print(f'Host     : {self.hostname} ({self.__name__})')
-                print('Filename : ' + basename)
-                print(f'Template : {template_name}')
+                print('Filename : ' + os.path.basename(job.in_path))
+                print(f'Template : {job.template.name()}')
                 print('ffmpeg   : ' + ' '.join(cli) + '\n')
                 return True
             finally:

@@ -16,6 +16,7 @@ from dtt.base import ManagedHost, RemoteHostProperties, EncodeJob
 from dtt.config import ConfigFile
 from dtt.ffmpeg import FFmpeg
 from dtt.localhost import LocalHost
+from dtt.media import MediaInfo
 from dtt.mountedhost import MountedManagedHost
 from dtt.streaminghost import StreamingManagedHost
 
@@ -66,6 +67,9 @@ class Cluster(Thread):
                     continue
                 eng_qualities = engine.qualities()
                 for qname, cli in eng_qualities.items():
+                    if host in down_hosts:
+                        continue
+
                     if qname not in self.queues:
                         self.queues[qname] = Queue()
 
@@ -143,6 +147,9 @@ class Cluster(Thread):
             if dtt.verbose:
                 print(str(media_info))
 
+            if dtt.show_info:
+                media_info.show_info()
+
             template = self.config.templates[template_name]
 
             video_quality = template.video_select()
@@ -180,7 +187,7 @@ class Cluster(Thread):
             host.terminate()
 
 
-def manage_cluster(files, config: ConfigFile, testing=False) -> List:
+def manage_cluster(files, config: ConfigFile, template_name: str, testing=False) -> List:
     """Main entry point for setup and execution of all jobs
 
         There is one thread for the cluster that manages multiple hosts, each having their own thread.
@@ -199,8 +206,7 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
     cluster = Cluster(config, config.ssh_path)
 
     for item in files:
-        filepath, template_name = item
-        cluster.enqueue(filepath, template_name)
+        cluster.enqueue(item, template_name)
 
     #
     # Start cluster, which will start hosts too
@@ -222,6 +228,7 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
 
         if config.rich() and not dtt.verbose:
             from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+            from rich import rule
 
             progress = Progress(
                 TextColumn("{task.fields[host]}"),
@@ -235,7 +242,10 @@ def manage_cluster(files, config: ConfigFile, testing=False) -> List:
                 TextColumn("{task.fields[status]}"),
                 console = dtt.console
             )
+
             dtt.console.print()
+            rule.Rule(title="Encoding")
+
             with progress:
                 tasks = {}
 

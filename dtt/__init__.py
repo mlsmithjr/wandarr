@@ -11,6 +11,7 @@ from queue import Queue
 verbose = False
 keep_source = False
 dry_run = False
+show_info = False
 
 console = None
 

@@ -91,14 +91,17 @@ engines:
     quality:
       medium: "-c:v hevc_videotoolbox -preset medium -qp 23 -b:v 6000K -f matroska -max_muxing_queue_size 1024"
       high:  "-c:v hevc_videotoolbox -preset medium -qp 21 -b:v 8000K -f matroska -max_muxing_queue_size 1024"
+      copy: "-c:v copy"
 
   qsv:
     quality:
       medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+      copy: "-c:v copy"
 
   cuda:
     quality:
       medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -b_ref_mode 0 -f matroska -max_muxing_queue_size 1024"
+      copy: "-c:v copy"
 
 
 templates:
@@ -117,7 +120,7 @@ templates:
     cli:
       audio-codec: "-c:a copy"
       subtitles: "-c:s copy"
-    video-quality: medium
+    video-select: medium
     audio-lang: "eng jpn"
     subtitle-lang: eng
     threshold: 15
@@ -237,6 +240,7 @@ templates:
       video-codec: "-c:v copy -f matroska"
       audio-codec: "-c:a copy"
       subtitles: "-c:s copy"
+    video-select: copy
     audio-lang: eng
     subtitle-lang: eng
     threshold: 0

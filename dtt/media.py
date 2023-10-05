@@ -2,8 +2,10 @@
 import os
 import re
 from datetime import timedelta
+from os.path import basename
 from typing import Dict, Optional, List
 
+import dtt
 from dtt import verbose
 
 #video_re = re.compile(r'^.*Duration: (\d+):(\d+):.* Stream .*: Video: (\w+).*, (\w+)[(,].* (\d+)x(\d+).* (\d+)(\.\d.)? fps,.*$',
@@ -37,12 +39,54 @@ class MediaInfo:
 
     def __str__(self):
         runtime = "{:0>8}".format(str(timedelta(seconds=self.runtime)))
-        audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a['default'] for a in self.audio]
+        print("DEBUG")
+        for a in self.audio:
+            print(a)
+
+        audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a.get('default',"0") for a in self.audio]
         audio = '(' + ','.join(audios) + ')'
         subs = [s['stream'] + ':' + s['lang'] + ':' + s.get('default', '') for s in self.subtitle]
         sub = '(' + ','.join(subs) + ')'
         buf = f"{self.path}, {self.filesize_mb}mb, {self.fps} fps, {self.res_width}x{self.res_height}, {runtime}, {self.vcodec}, audio={audio}, sub={sub}"
         return buf
+
+    @staticmethod
+    def show_info(use_rich, files, ffmpeg):
+        if use_rich:
+            from rich.table import Table
+            from rich.console import Console
+
+            console = Console()
+            table = Table(title="Technical Details")
+
+            table.add_column("File", style="magenta")
+            table.add_column("Runtime", justify="right", style="cyan", no_wrap=True)
+            table.add_column("Video", justify="right", style="green")
+            table.add_column("Resolution", justify="right", style="green")
+            table.add_column("SizeMB", justify="right", style="green")
+            table.add_column("FPS", justify="right", style="green")
+            table.add_column("Audio", justify="right", style="green")
+            table.add_column("Subtitle", justify="right", style="green")
+
+            for path in files:
+                mi = ffmpeg.fetch_details(path)
+                mins = int(mi.runtime / 60)
+                audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a.get('default',"") for a in mi.audio]
+                subs = [s['stream'] + ':' + s['lang'] + ':' + s.get('default', '') for s in mi.subtitle]
+
+                table.add_row(basename(mi.path),
+                              str(mins)+"m",
+                              mi.vcodec,
+                              f"{mi.res_width}x{mi.res_height}",
+                              str(round(mi.filesize_mb, 1)),
+                              str(mi.fps),
+                              "|".join(audios),
+                              "|".join(subs))
+            console.print(table)
+        else:
+            for path in files:
+                media_info = ffmpeg.fetch_details(path)
+                print(str(media_info))
 
     def is_multistream(self) -> bool:
         return len(self.audio) > 1 or len(self.subtitle) > 1
@@ -65,6 +109,8 @@ class MediaInfo:
             ainfo = audio_match.groupdict()
             if ainfo['lang'] is None:
                 ainfo['lang'] = 'und'   # set as (und)efined
+            if ainfo['default'] is None:
+                ainfo['default'] = "0"
             audio_tracks.append(ainfo)
 
         subtitle_tracks = list()
@@ -72,6 +118,7 @@ class MediaInfo:
             sinfo = subt_match.groupdict()
             if sinfo['lang'] is None:
                 sinfo['lang'] = 'und'
+            sinfo['default'] = "0"
             subtitle_tracks.append(sinfo)
 
         _dur_hrs, _dur_mins, _dur_secs = match1.group(1, 2, 3)
@@ -128,10 +175,10 @@ class MediaInfo:
                 audio = dict()
                 audio['stream'] = str(stream['index'])
                 audio['format'] = stream['codec_name']
-                audio['default'] = 0
+                audio['default'] = "0"
                 if 'disposition' in stream:
                     if 'default' in stream['disposition']:
-                        audio['default'] = stream['disposition']['default']
+                        audio['default'] = stream['disposition']['default'] or "0"
                 if 'tags' in stream:
                     if 'language' in stream['tags']:
                         audio['lang'] = stream['tags']['language']
@@ -147,10 +194,10 @@ class MediaInfo:
                 sub = dict()
                 sub['stream'] = str(stream['index'])
                 sub['format'] = stream['codec_name']
-                sub['default'] = 0
+                sub['default'] = "0"
                 if 'disposition' in stream:
                     if 'default' in stream['disposition']:
-                        sub['default'] = stream['disposition']['default']
+                        sub['default'] = stream['disposition']['default'] or "0"
                 if 'tags' in stream:
                     if 'language' in stream['tags']:
                         sub['lang'] = stream['tags']['language']

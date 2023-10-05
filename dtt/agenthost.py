@@ -1,5 +1,6 @@
 import datetime
 import os
+import traceback
 from queue import Queue
 import socket
 
@@ -81,40 +82,9 @@ class AgentManagedHost(ManagedHost):
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map]
 
-
-                if dtt.dry_run:
-                    #
-                    # display useful information
-                    #
-                    self.lock.acquire()
-                    try:
-                        print('-' * 40)
-                        print(f'Host     : {self.hostname} (agent)')
-                        print('Filename : ' + os.path.basename(remote_in_path))
-                        print(f'Directive: {job.template.name()}')
-                        print('Command  : ' + ' '.join(cmd) + '\n')
-                    finally:
-                        self.lock.release()
-                    continue
-
                 basename = os.path.basename(job.in_path)
 
-                def log_callback(stats):
-                    pct_done, pct_comp = calculate_progress(job.media_info, stats)
-                    dtt.status_queue.put({'host': self.hostname,
-                                          'file': basename,
-                                          'speed': stats['speed'],
-                                          'comp': pct_comp,
-                                          'completed': pct_done})
-
-                    if job.should_abort(pct_done):
-                        # compression goal (threshold) not met, kill the job and waste no more time...
-#                        self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
-                        dtt.status_queue.put({'host': self.hostname,
-                                              'file': basename,
-                                              'status': "Skipped (threshold)"})
-                        return True
-                    return False
+                super().dump_job_info(job, cmd)
 
                 #
                 # Send to agent
@@ -158,7 +128,7 @@ class AgentManagedHost(ManagedHost):
                                       'file': basename,
                                       'status': 'Running'})
                 job_start = datetime.datetime.now()
-                finished, stats = self.ffmpeg.monitor_agent_ffmpeg(s, log_callback, self.ffmpeg.monitor_agent)
+                finished, stats = self.ffmpeg.monitor_agent_ffmpeg(s, super().callback_wrapper(job), self.ffmpeg.monitor_agent)
                 job_stop = datetime.datetime.now()
 
                 try:
@@ -202,6 +172,6 @@ class AgentManagedHost(ManagedHost):
                     s.send(bytes("STOP".encode()))
 
             except Exception as ex:
-                self.log(ex)
+                print(traceback.format_exc())
             finally:
                 self.queue.task_done()

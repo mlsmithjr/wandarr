@@ -1,5 +1,6 @@
 import datetime
 import os
+import traceback
 from queue import Queue
 
 import dtt
@@ -71,7 +72,7 @@ class MountedManagedHost(ManagedHost):
 
                 basename = os.path.basename(job.in_path)
 
-                if super().dump_job_info(basename, cli, job.template.name()):
+                if super().dump_job_info(job, cmd):
                     continue
 
                 dtt.status_queue.put({'host': self.hostname,
@@ -82,7 +83,7 @@ class MountedManagedHost(ManagedHost):
                 #
                 job_start = datetime.datetime.now()
                 code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
-                                              super().callback_wrapper(basename, job))
+                                              super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
                 #print(f"host {self.hostname} done with code {code}")
@@ -121,6 +122,6 @@ class MountedManagedHost(ManagedHost):
                         pass
 
             except Exception as ex:
-                self.log(str(ex))
+                print(traceback.format_exc())
             finally:
                 self.queue.task_done()

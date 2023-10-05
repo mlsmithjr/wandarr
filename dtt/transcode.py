@@ -11,6 +11,8 @@ from dtt import __version__
 from dtt.agent import Agent
 from dtt.cluster import manage_cluster
 from dtt.config import ConfigFile
+from dtt.ffmpeg import FFmpeg
+from dtt.media import MediaInfo
 from dtt.utils import files_from_file, dump_stats
 
 DEFAULT_CONFIG = os.path.expanduser('~/.dtt.yml')
@@ -39,6 +41,8 @@ def start():
     parser.add_argument(dest='files', metavar='filename', nargs='*')
     parser.add_argument('-v', dest='verbose',
                         action='store_true', help='verbose mode')
+    parser.add_argument("-i", help="show technical info on files and stop",
+                        action="store_true", dest="show_info")
     parser.add_argument('-k', dest='keep_source',
                         action='store_true', help='keep source (do not replace)')
     parser.add_argument('--dry-run', dest='dry_run',
@@ -47,7 +51,7 @@ def start():
                         action='store', help='Full path to configuration file.  Default is ~/.dtt.yml')
     parser.add_argument('--agent', dest='agent_mode',
                         action='store_true', help="Start in agent mode on a host and listen for transcode requests from other dtt.")
-    parser.add_argument('-t', dest='template', required=True,
+    parser.add_argument('-t', dest='template', required=False,
                         action='store', help="Template name to use for transcode jobs")
     parser.add_argument('--hosts', dest='host_override',
                         action='store', help="Only run transcode on given host(s), comma-separated")
@@ -65,6 +69,10 @@ def start():
     dtt.verbose = args.verbose
     dtt.keep_source = args.keep_source
     dtt.dry_run = args.dry_run
+    dtt.show_info = args.show_info
+    if dtt.show_info:
+        dtt.dry_run = True
+        agent_mode = False
 
     if agent_mode:
         agent = Agent()
@@ -77,22 +85,21 @@ def start():
         print(f'No files - nothing to do')
         sys.exit(0)
 
-    # add template to each file
     enriched_files = []
     for f in files:
         expanded_files: List = glob.glob(f)     # support wildcards in Windows
         for ef in expanded_files:
-            enriched_files.append((ef, template))
+            enriched_files.append(ef)
     files = enriched_files
 
     # if os.name == "nt":
     #     expanded_files: List = glob.glob(files[0])     # handle wildcards in Windows
     #     for f in expanded_files:
-    #         files.append((f, template))
+    #         files.append(f)
 
     if from_file:
         tmpfiles = files_from_file(from_file)
-        files.extend([(f, template) for f in tmpfiles])
+        files.extend(tmpfiles)
 
     if host_override is not None:
         # disable all other hosts in-memory only - to force encodes to the designated host
@@ -101,7 +108,15 @@ def start():
             if name not in host_list:
                 this_config['status'] = 'disabled'
 
-    completed: List = manage_cluster(files, configfile)
+    if dtt.show_info:
+        MediaInfo.show_info(configfile.rich, files, FFmpeg(configfile.ffmpeg_path))
+        sys.exit(0)
+
+    if not template:
+        print("A template is required")
+        sys.exit(1)
+
+    completed: List = manage_cluster(files, configfile, template)
     if len(completed) > 0:
         dump_stats(completed)
     sys.exit(0)

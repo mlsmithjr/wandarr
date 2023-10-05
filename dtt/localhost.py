@@ -1,5 +1,6 @@
 import os
 import datetime
+import traceback
 from queue import Queue
 
 import dtt
@@ -63,7 +64,7 @@ class LocalHost(ManagedHost):
 
                 basename = os.path.basename(job.in_path)
 
-                if super().dump_job_info(basename, cli, job.template.name()):
+                if super().dump_job_info(job, cli):
                     continue
 
                 dtt.status_queue.put({'host': self.hostname,
@@ -73,7 +74,7 @@ class LocalHost(ManagedHost):
                 # Start process
                 #
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run(cli, super().callback_wrapper(basename, job))
+                code = self.ffmpeg.run(cli, super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
                 #
@@ -110,6 +111,6 @@ class LocalHost(ManagedHost):
                         pass
 
             except Exception as ex:
-                self.log(str(ex))
+                print(traceback.format_exc())
             finally:
                 self.queue.task_done()
