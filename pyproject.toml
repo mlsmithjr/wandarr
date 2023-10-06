@@ -41,4 +41,4 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/wandarr"]
+packages = ["wandarr"]

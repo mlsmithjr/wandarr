@@ -1,8 +1,8 @@
 
-from dtt import transcode
+from wandarr import transcode
 
 #
-# stub for running dtt as a package while developing and testing.
+# stub for running wandarr as a package while developing and testing.
 #
 
 transcode.start()

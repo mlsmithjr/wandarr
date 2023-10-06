@@ -1,6 +1,6 @@
 ## wandarr - the Distributed Transcoding Toolkit
 This CLI tool is a transcoding workflow manager that makes transcoding video files easier and optionally across multiple
-machines in parallel, using ffmpeg. It is the successor to pytranscoder and is based on the fundamental codebase of that project.
+machines in parallel, using ffmpeg. It is the successor to pytranscoder and is based on the fundamental codebase  of that project.
 
 #### Features:
 * Sequential or concurrent transcoding. 
@@ -14,7 +14,7 @@ nVidia CUDA-enabled graphics card or Intel accelerated video (QSV)
 
 #### Requirements
 
-* Linux or MacOS, Windows. For Windows, WSL (Ubuntu) recommended.
+* Linux or MacOS, Windows. 
 * latest *ffmpeg* (3.4.3-2 or higher, lower versions may still work)
 * nVidia graphics card with latest nVidia CUDA drivers (_optional_)
 * Intel CPU with QSV enabled (_optional_)
