@@ -1,11 +1,11 @@
 
-##########################################
+######################################################
 # global configuration section
-##########################################
+# This applies to the host where you will run wandarr from
+######################################################
 config:
   ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
   rich: yes     # use rich text library for nicer output
-  fls_path: '/tmp'    # fast local storage for work files, ideally an SSD (optional)
 
 #
 # Cluster machine definitions. Must have at least 1, usually the local machine
@@ -84,6 +84,7 @@ cluster:
     ffmpeg: '/opt/homebrew/bin/ffmpeg'
     engines:
       - vt
+      - cpu
     status: enabled
 
 engines:
@@ -91,17 +92,18 @@ engines:
     quality:
       medium: "-c:v hevc_videotoolbox -preset medium -qp 23 -b:v 6000K -f matroska -max_muxing_queue_size 1024"
       high:  "-c:v hevc_videotoolbox -preset medium -qp 21 -b:v 8000K -f matroska -max_muxing_queue_size 1024"
-      copy: "-c:v copy"
 
   qsv:
     quality:
       medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
-      copy: "-c:v copy"
 
   cuda:
     quality:
       medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -b_ref_mode 0 -f matroska -max_muxing_queue_size 1024"
-      copy: "-c:v copy"
+
+  cpu:
+    quality:
+      copy: "-c:v copy -f matroska"
 
 
 templates:

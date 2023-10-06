@@ -1,16 +1,15 @@
-import os
 import datetime
+import os
 import traceback
 from queue import Queue
 
-import dtt
-from dtt.base import RemoteHostProperties, EncodeJob, ManagedHost
-from dtt.utils import calculate_progress, filter_threshold
+import wandarr
+from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
+from wandarr.utils import calculate_progress, filter_threshold
 
 
-class LocalHost(ManagedHost):
-    """Implementation of a worker thread when the local machine is in the same cluster.
-    Pretty much the same as the LocalHost class but without multiple dedicated queues"""
+class MountedManagedHost(ManagedHost):
+    """Implementation of a mounted host worker thread"""
 
     def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
         super().__init__(hostname, props, queue, cluster)
@@ -25,7 +24,8 @@ class LocalHost(ManagedHost):
     # normal threaded entry point
     #
     def run(self):
-        self.go()
+        if self.host_ok():
+            self.go()
 
     def go(self):
 
@@ -38,14 +38,22 @@ class LocalHost(ManagedHost):
                 # calculate paths
                 #
                 out_path = in_path[0:in_path.rfind('.')] + job.template.extension() + '.tmp'
-
+                remote_in_path = in_path
+                remote_out_path = out_path
+                if self.props.has_path_subst:
+                    #
+                    # fix the input path to match what the remote machine expects
+                    #
+                    remote_in_path, remote_out_path = self.props.substitute_paths(in_path, out_path)
+                    if wandarr.verbose:
+                        print(f"substituted {remote_in_path} for {in_path}")
                 #
                 # build command line
                 #
-                remote_in_path = self.converted_path(in_path)
-                remote_out_path = self.converted_path(out_path)
-
                 video_options = self.video_cli.split(" ")
+
+                remote_in_path = self.converted_path(remote_in_path)
+                remote_out_path = self.converted_path(remote_out_path)
 
                 stream_map = super().map_streams(job, self._manager.config)
                 if not stream_map:
@@ -57,26 +65,28 @@ class LocalHost(ManagedHost):
                 #                                          job.media_info.subtitle)
                 #     if not stream_map:
                 #         continue            # require at least 1 audio track
-                cli = ['-y', *job.template.input_options_list(), '-i', remote_in_path,
+                cmd = ['-y', *job.template.input_options_list(), '-i', f'"{remote_in_path}"',
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map,
-                       remote_out_path]
+                       f'"{remote_out_path}"']
 
                 basename = os.path.basename(job.in_path)
 
-                if super().dump_job_info(job, cli):
+                if super().dump_job_info(job, cmd):
                     continue
 
-                dtt.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': self.hostname,
                                       'file': basename,
                                       'completed': 0})
                 #
-                # Start process
+                # Start remote
                 #
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run(cli, super().callback_wrapper(job))
+                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
+                                              super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
+                #print(f"host {self.hostname} done with code {code}")
                 #
                 # process completed, check results and finish
                 #
@@ -87,23 +97,24 @@ class LocalHost(ManagedHost):
                     continue
 
                 if code == 0:
-                    dtt.status_queue.put({'host': self.hostname, 'file': basename, 'completed': 100})
                     if not filter_threshold(job.template, in_path, out_path):
+#                        self.log(
+#                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(out_path)
                         continue
 
-                    if not dtt.keep_source:
-                        if dtt.verbose:
+                    if not wandarr.keep_source:
+                        if wandarr.verbose:
                             self.log('removing ' + in_path)
                         os.remove(in_path)
-                        if dtt.verbose:
+                        if wandarr.verbose:
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
-                    self.log(f'Finished {job.in_path}')
+                    #self.log(crayons.green(f'Finished {job.in_path}'))
                 elif code is not None:
-                    self.log(f' Did not complete normally: {self.ffmpeg.last_command}')
+                    self.log(f'Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
                     try:
                         os.remove(out_path)

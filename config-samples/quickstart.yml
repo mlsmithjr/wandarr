@@ -1,0 +1,47 @@
+
+######################################################
+# global configuration section
+# This applies to the host where you will run wandarr from
+######################################################
+config:
+  ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
+  rich: yes     # use rich text library for nicer output
+
+#
+# Cluster machine definitions. Must have at least 1, usually the local machine
+#
+cluster:
+
+  # customize this for your setup
+  workstation:
+    os: linux
+    type: local
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    status: enabled
+
+#
+# define hardware capabilities available
+#
+engines:
+  qsv:
+    quality:
+      medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+
+#
+# just one simple template to only transcode video to a reasonable quality
+#
+templates:
+  tv:
+    cli:
+      audio-codec: "-c:a copy"
+      subtitles: "-c:s copy"
+    video-select: medium
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 20
+    extension: '.mkv'
+

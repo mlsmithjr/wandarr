@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wandarr"
+version = "1.0.0"
+authors = [
+  { name="Marshall L Smith Jr", email="marshallsmithjr@gmail.com" }
+]
+description = "A ffmpeg transcoding workflow engine with clustered host support"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    'Programming Language :: Python :: 3',
+      'Environment :: Console',
+      'Topic :: Multimedia :: Video :: Conversion',
+      'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+      'Intended Audience :: End Users/Desktop',
+      'Natural Language :: English',
+      'Operating System :: POSIX :: Linux',
+      'Operating System :: MacOS :: MacOS X',
+      'Operating System :: Microsoft :: Windows'
+]
+keywords=['ffmpeg','qsv','cuda','encode','transcode']
+
+dependencies = [
+  'pyyaml >= 6.0',
+  'rich >= 13.5.3'
+]
+
+[project.scripts]
+wandarr = "wandarr.transcode:start"
+
+[project.urls]
+"Homepage" = "https://github.com/mlsmithjr/wandarr"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/venv",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wandarr"]
