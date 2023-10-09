@@ -7,7 +7,7 @@ if sys.version_info < (3, 10):
     print('wandarr requires at least Python 3.10 to run.')
     sys.exit(1)
 
-with open(os.path.join('src', 'wandarr', '__init__.py'), encoding='utf-8') as f:
+with open(os.path.join('wandarr', '__init__.py'), encoding='utf-8') as f:
     version = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M).group(1)
 
 with open('README.md', 'r') as fh:

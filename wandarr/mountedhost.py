@@ -3,6 +3,7 @@ import os
 import traceback
 from queue import Queue
 
+import wandarr
 from .base import ManagedHost, RemoteHostProperties, EncodeJob
 from .utils import filter_threshold
 
@@ -44,7 +45,7 @@ class MountedManagedHost(ManagedHost):
                     # fix the input path to match what the remote machine expects
                     #
                     remote_in_path, remote_out_path = self.props.substitute_paths(in_path, out_path)
-                    if .verbose:
+                    if wandarr.verbose:
                         print(f"substituted {remote_in_path} for {in_path}")
                 #
                 # build command line
@@ -55,8 +56,6 @@ class MountedManagedHost(ManagedHost):
                 remote_out_path = self.converted_path(remote_out_path)
 
                 stream_map = super().map_streams(job, self._manager.config)
-                if not stream_map:
-                    continue
 
                 # stream_map = []
                 # if job.media_info.is_multistream() and self._manager.config.automap:
@@ -74,7 +73,7 @@ class MountedManagedHost(ManagedHost):
                 if super().dump_job_info(job, cmd):
                     continue
 
-                .status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': self.hostname,
                                       'file': basename,
                                       'completed': 0})
                 #
@@ -103,11 +102,11 @@ class MountedManagedHost(ManagedHost):
                         os.remove(out_path)
                         continue
 
-                    if not .keep_source:
-                        if .verbose:
+                    if not wandarr.keep_source:
+                        if wandarr.verbose:
                             self.log('removing ' + in_path)
                         os.remove(in_path)
-                        if .verbose:
+                        if wandarr.verbose:
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)

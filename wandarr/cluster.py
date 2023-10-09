@@ -16,7 +16,6 @@ from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
 from wandarr.config import ConfigFile
 from wandarr.ffmpeg import FFmpeg
 from wandarr.localhost import LocalHost
-from wandarr.media import MediaInfo
 from wandarr.mountedhost import MountedManagedHost
 from wandarr.streaminghost import StreamingManagedHost
 

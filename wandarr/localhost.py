@@ -48,8 +48,6 @@ class LocalHost(ManagedHost):
                 video_options = self.video_cli.split(" ")
 
                 stream_map = super().map_streams(job, self._manager.config)
-                if not stream_map:
-                    continue
 
                 # stream_map = []
                 # if job.media_info.is_multistream() and self._manager.config.automap:
