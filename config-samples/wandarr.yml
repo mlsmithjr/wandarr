@@ -7,9 +7,9 @@ config:
   ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
   rich: yes     # use rich text library for nicer output
 
-#
+##############################################################################
 # Cluster machine definitions. Must have at least 1, usually the local machine
-#
+##############################################################################
 cluster:
   homeserver:
     os: linux
@@ -87,6 +87,10 @@ cluster:
       - cpu
     status: enabled
 
+##############################################################################
+# Transcoding hardware available to us
+##############################################################################
+
 engines:
   vt:
     quality:
@@ -105,6 +109,9 @@ engines:
     quality:
       copy: "-c:v copy -f matroska"
 
+##############################################################################
+# Templates that determine how to transcode
+##############################################################################
 
 templates:
   tv:

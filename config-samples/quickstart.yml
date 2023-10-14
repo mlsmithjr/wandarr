@@ -7,9 +7,10 @@ config:
   ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
   rich: yes     # use rich text library for nicer output
 
-#
+##############################################################################
 # Cluster machine definitions. Must have at least 1, usually the local machine
-#
+##############################################################################
+
 cluster:
 
   # customize this for your setup
@@ -22,17 +23,19 @@ cluster:
       - qsv
     status: enabled
 
-#
-# define hardware capabilities available
-#
+##############################################################################
+# Transcoding hardware available to us
+##############################################################################
+
 engines:
   qsv:
     quality:
       medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
 
-#
-# just one simple template to only transcode video to a reasonable quality
-#
+##############################################################################
+# Templates that determine how to transcode
+##############################################################################
+
 templates:
   tv:
     cli:

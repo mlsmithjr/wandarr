@@ -234,7 +234,7 @@ class ManagedHost(Thread):
         if self._manager.verbose:
             self.log(' '.join(*args))
             if p.returncode != 0:
-                self.log(p.stderr)
+                self.log(p.stderr.decode("utf-8"))
         return p
 
     def terminate(self):
@@ -279,7 +279,7 @@ class ManagedHost(Thread):
             self.lock.acquire()
             try:
                 print('-' * 40)
-                print(f'Host     : {self.hostname} ({self.__name__})')
+                print(f'Host     : {self.hostname}')
                 print('Filename : ' + os.path.basename(job.in_path))
                 print(f'Template : {job.template.name()}')
                 print('ffmpeg   : ' + ' '.join(cli) + '\n')

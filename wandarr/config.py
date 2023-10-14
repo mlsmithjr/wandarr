@@ -40,6 +40,12 @@ class ConfigFile:
                     yml = yaml.load(f, Loader=yaml.Loader)
             self.settings = yml['config']
 
+            # verify ffmpeg
+            config = yml.get("config", {})
+            ffmpeg_path = config.get("ffmpeg")
+            if not os.path.exists(ffmpeg_path):
+                raise ValueError(f"ffmpeg not found at configured location {ffmpeg_path} - please correct config/ffmpeg setting")
+
             #
             # load cluster hosts
             #

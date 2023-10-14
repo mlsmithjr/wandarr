@@ -146,9 +146,6 @@ class Cluster(Thread):
             if wandarr.verbose:
                 print(str(media_info))
 
-            if wandarr.show_info:
-                media_info.show_info()
-
             template = self.config.templates[template_name]
 
             video_quality = template.video_select()
@@ -196,13 +193,16 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
     if config.rich():
         from rich.console import Console
         wandarr.console = Console()
-        wandarr.console.clear()
 
     if not config.hosts:
         print('Error: no cluster defined')
         return completed
 
-    cluster = Cluster(config, config.ssh_path)
+    try:
+        cluster = Cluster(config, config.ssh_path)
+    except ValueError as ve:
+        print("Error initializing: " + str(ve))
+        sys.exit(1)
 
     for item in files:
         cluster.enqueue(item, template_name)
@@ -235,15 +235,13 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                 BarColumn(),
                 TaskProgressColumn(),
                 TimeRemainingColumn(),
-    #            *Progress.get_default_columns(),
                 TextColumn("Comp={task.fields[comp]}"),
                 TextColumn("Speed={task.fields[speed]}"),
                 TextColumn("{task.fields[status]}"),
                 console = wandarr.console
             )
 
-            wandarr.console.print()
-            rule.Rule(title="Encoding")
+            wandarr.console.print(rule.Rule(title="Encoding"))
 
             with progress:
                 tasks = {}
@@ -261,9 +259,6 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                         # add an emoji to call attention to the skipped job
                         if "status" in report and "Skipped" in report["status"]:
                             report["status"] = ":stop_sign: " + report["status"]
-                        # if done > 99 and not report.get("status"):
-                        #     report["status"] = "Complete"
-    #                    progress.update(taskid, completed = done, speed = speed, comp = comp, status = report.get("status", ""))
                         progress.update(taskid, **report)
                         wandarr.status_queue.task_done()
                     except queue.Empty as e:

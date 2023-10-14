@@ -36,7 +36,9 @@ class FFmpeg(Processor):
             mi = MediaInfo.parse_ffmpeg_details(_path, output)
             if mi.valid:
                 return mi
-        # try falling back to ffprobe, if it exists
+        #
+        # try falling back to ffprobe, if it exists. ffprobe is typically installed in the same
+        # location as ffmpeg
         try:
             return self.fetch_details_ffprobe(_path)
         except Exception as ex:

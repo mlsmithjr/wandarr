@@ -71,8 +71,8 @@ class MediaInfo:
             for path in files:
                 mi = ffmpeg.fetch_details(path)
                 mins = int(mi.runtime / 60)
-                audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a.get('default',"") for a in mi.audio]
-                subs = [s['stream'] + ':' + s['lang'] + ':' + s.get('default', '') for s in mi.subtitle]
+                audios = [a['stream'] + ',' + a['lang'] + ',' + a['format'] + ',' + a.get('default',"") for a in mi.audio]
+                subs = [s['stream'] + ',' + s['lang'] + ',' + s.get('default', '') for s in mi.subtitle]
 
                 table.add_row(basename(mi.path),
                               str(mins)+"m",

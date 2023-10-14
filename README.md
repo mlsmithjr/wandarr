@@ -9,7 +9,7 @@ nVidia CUDA-enabled graphics card or Intel accelerated video (QSV)
 * Preserves all streams but allows for filtering by audio and subtitle language.
 * Configurable transcoding templates
 * Transcode from a list of files (queue) or all on the command line
-* Clustering allows use of other machines See [Cluster.md](https://github.com/mlsmithjr/transcoder/blob/master/Cluster.md) for details.
+* Clustering allows use of other machines.
 * On-the-fly compression monitoring and optional early job termination if not compressing as expected.
 
 #### Requirements
