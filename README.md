@@ -190,16 +190,16 @@ Templates define overall how to handle a video.  As with engine definitions abov
 In the samples below you will see examples of video-only transcoding (preserve audio as-is), full audio and video transcoding, 
 and special case template used just to scrub out unwanted languages.
 
-Note the *video-select* element.  This is used to complete the linkage from template to engine to hosts.
+Note the *video-quality* element.  This is used to complete the linkage from template to engine to hosts.
 
 Sample:
 ```yaml
 templates:
   vid-only:                   # name of the template - you will use this on the commandline
     cli:                      # section for non-video ffmpeg commandline options
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: medium      # match this template to the "medium" quality defined in *engines*
+    video-quality: medium      # match this template to the "medium" quality defined in *engines*
     audio-lang: eng           # preserve only English audio tracks (opt).
     subtitle-lang: eng        # preserve only English subtitle tracks (opt).
     threshold: 15             # minimum required compression is %15, or terminate transcode (opt)
@@ -208,9 +208,9 @@ templates:
 
   vid-only-anime:
     cli:
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: medium
+    video-quality: medium
     audio-lang: "eng jpn"     # preserve English and Japanese audio
     subtitle-lang: eng
     threshold: 15
@@ -219,9 +219,9 @@ templates:
 
   best-medium:
     cli:
-      audio-codec: "-c:a ac3 -b:a 768k"
+      audio: "-c:a ac3 -b:a 768k"
       subtitles: "-c:s copy"
-    video-select: medium
+    video-quality: medium
     audio-lang: eng
     subtitle-lang: eng
     threshold: 15
@@ -230,9 +230,9 @@ templates:
 
   best-medium-anime:
     cli:
-      audio-codec: "-c:a ac3 -b:a 768k"
+      audio: "-c:a ac3 -b:a 768k"
       subtitles: "-c:s copy"
-    video-select: medium
+    video-quality: medium
     audio-lang: "eng jpn"
     subtitle-lang: eng
     threshold: 15
@@ -241,18 +241,18 @@ templates:
 
   scrub:        # this template used only to scrub out undesired audio and subtitle tracks. no transcoding done.
     cli:
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: copy
+    video-quality: copy
     audio-lang: eng
     subtitle-lang: eng
     extension: '.mkv'
 
   scrub-anime:  # this template used only to scrub out undesired audio and subtitle tracks. no transcoding done.
     cli:
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: copy
+    video-quality: copy
     audio-lang: "eng jpn"
     subtitle-lang: eng
     extension: '.mkv'
@@ -264,7 +264,7 @@ Here's how to read the samples above in their entirety.
 
 In the *vid-only* template above, we defined the ffmpeg options to handle audio and subtitles.  In this case, we're just copying with no changes.
 Now we need to know the ffmpeg options for handling video.
-The video-select value of *medium* matches all *medium* definitions in engines.  This tells wandarr that any hosts that match an
+The video-quality value of *medium* matches all *medium* definitions in engines.  This tells wandarr that any hosts that match an
 engine definition containing a *medium* will be a eligible match for this template.  So for medium we have told wandarr how to transcode
 video for video toolbox, intel qsv, and nvidia cuda.  Whichever hosts are associated to those engines may be selected to do the job.
 

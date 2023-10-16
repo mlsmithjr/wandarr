@@ -21,7 +21,7 @@ class Template:
 
     def output_options_list(self, config) -> List[str]:
         opts = []
-        aopt = self.cli.get("audio-codec", "")
+        aopt = self.cli.get("audio", "")
         opts.extend(aopt.split(" "))
         sopt = self.cli.get("subtitles", "")
         opts.extend(sopt.split(" "))
@@ -32,7 +32,7 @@ class Template:
         return self.template.get(key)
 
     def video_select(self):
-        return self.template.get("video-select")
+        return self.template.get("video-quality")
 
     def extension(self) -> str:
         ext = self.template.get('extension')
@@ -63,7 +63,7 @@ class Template:
         elif stream_type == "s":
             includes = self.template.get("subtitle-lang")
         if includes:
-            includes = includes.split(" ")
+            includes = includes.split(",")
         else:
             includes = []
 

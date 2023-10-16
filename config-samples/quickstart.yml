@@ -15,13 +15,13 @@ cluster:
 
   # customize this for your setup
   workstation:
-    os: linux
-    type: local
+    os: linux     # choices are macos, linux, win10 (supports 11 as well)
+    type: local   # see README - choices are local, mounted, streaming, agent
     working_dir: /tmp
-    ffmpeg: '/usr/bin/ffmpeg'
-    engines:
+    ffmpeg: '/usr/bin/ffmpeg' # location of ffmpeg on this host
+    engines:    # supported video transcoding types
       - qsv
-    status: enabled
+    status: enabled   # enabled or disabled
 
 ##############################################################################
 # Transcoding hardware available to us
@@ -29,7 +29,7 @@ cluster:
 
 engines:
   qsv:
-    quality:
+    quality:    # define how to transcode various user-defined video qualities
       medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
 
 ##############################################################################
@@ -37,11 +37,11 @@ engines:
 ##############################################################################
 
 templates:
-  tv:
+  tv:         # simple template to transcode video using "medium" quality defined above
     cli:
-      audio-codec: "-c:a copy"
-      subtitles: "-c:s copy"
-    video-select: medium
+      audio: "-c:a copy"        # ffmpeg options to just pass through audio not transcoded.
+      subtitles: "-c:s copy"    # ffmpeg options to just pass through subtitles.
+    video-quality: medium
     audio-lang: eng
     subtitle-lang: eng
     threshold: 15

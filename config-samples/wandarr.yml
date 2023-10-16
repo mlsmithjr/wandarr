@@ -116,9 +116,9 @@ engines:
 templates:
   tv:
     cli:
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: medium
+    video-quality: medium
     audio-lang: eng
     subtitle-lang: eng
     threshold: 15
@@ -127,10 +127,10 @@ templates:
 
   tv_anime:
     cli:
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: medium
-    audio-lang: "eng jpn"
+    video-quality: medium
+    audio-lang: "eng,jpn"
     subtitle-lang: eng
     threshold: 15
     threshold_check: 20
@@ -139,7 +139,7 @@ templates:
   qsv:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -151,7 +151,7 @@ templates:
   qsv4k:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 20 -b:v 30M -f matroska -max_muxing_queue_size 2048"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -163,7 +163,7 @@ templates:
   qsv_medium:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 4000K -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a ac3 -b:a 768k"
+      audio: "-c:a ac3 -b:a 768k"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -175,7 +175,7 @@ templates:
   qsv_medium_audio_pass:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 4000K -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -187,9 +187,9 @@ templates:
   qsv_anime:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 3000K -f matroska"
-      audio-codec: "-c:a ac3 -b:a 768k"
+      audio: "-c:a ac3 -b:a 768k"
       subtitles: "-c:s copy"
-    audio-lang: "eng jpn"
+    audio-lang: "eng,jpn"
     subtitle-lang: eng
     threshold: 15
     threshold_check: 30
@@ -199,9 +199,9 @@ templates:
   qsv_anime_vidonly:
     cli:
       video-codec: "-c:v hevc_qsv -preset medium -qp 21 -b:v 3000K -f matroska"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    audio-lang: "eng jpn"
+    audio-lang: "eng,jpn"
     subtitle-lang: eng
     threshold: 15
     threshold_check: 30
@@ -211,7 +211,7 @@ templates:
   tcuda:
     cli:
       video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -223,7 +223,7 @@ templates:
   tcuda-medium:
     cli:
       video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 5M -profile:v main -maxrate:v 5M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a ac3 -b:a 768k"
+      audio: "-c:a ac3 -b:a 768k"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -235,7 +235,7 @@ templates:
   tcuda-medium-audio-pass:
     cli:
       video-codec: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 5M -profile:v main -maxrate:v 5M -preset medium -pix_fmt yuv420p -f matroska -max_muxing_queue_size 1024"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: eng
     subtitle-lang: eng
@@ -247,9 +247,9 @@ templates:
   scrub:
     cli:
       video-codec: "-c:v copy -f matroska"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
-    video-select: copy
+    video-quality: copy
     audio-lang: eng
     subtitle-lang: eng
     threshold: 0
@@ -259,7 +259,7 @@ templates:
   scrub_anime:
     cli:
       video-codec: "-c:v copy -f matroska"
-      audio-codec: "-c:a copy"
+      audio: "-c:a copy"
       subtitles: "-c:s copy"
     audio-lang: "eng jpn"
     subtitle-lang: eng

@@ -31,19 +31,28 @@ class FFmpeg(Processor):
         :param _path:   Absolute path to media file
         :return:        Instance of MediaInfo
         """
+
+        #
+        # try ffprobe first since it's json output just better. ffprobe is typically installed in the same
+        # location as ffmpeg
+        #
+        try:
+            mi = self.fetch_details_ffprobe(_path)
+            if mi:
+                return mi
+        except Exception as ex:
+            pass
+
+        #
+        # fall back to using ffmpeg itself and parsing out details with regex
+        #
         with subprocess.Popen([self.path, '-i', _path], stderr=subprocess.PIPE) as proc:
             output = proc.stderr.read().decode(encoding='utf8')
             mi = MediaInfo.parse_ffmpeg_details(_path, output)
             if mi.valid:
                 return mi
-        #
-        # try falling back to ffprobe, if it exists. ffprobe is typically installed in the same
-        # location as ffmpeg
-        try:
-            return self.fetch_details_ffprobe(_path)
-        except Exception as ex:
-            print("Unable to fallback to ffprobe - " + str(ex))
-            return MediaInfo(None)
+
+        return MediaInfo(None)
 
     def fetch_details_ffprobe(self, _path: str) -> MediaInfo:
         ffprobe_path = str(PurePath(self.path).parent.joinpath('ffprobe'))

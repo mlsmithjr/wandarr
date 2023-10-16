@@ -43,9 +43,21 @@ class MediaInfo:
         for a in self.audio:
             print(a)
 
-        audios = [a['stream'] + ':' + a['lang'] + ':' + a['format'] + ':' + a.get('default',"0") for a in self.audio]
+        audios = []
+        for a in self.audio:
+            dind = '*' if a.get('default') == "1" else ''
+            lang = a.get("lang", "???")
+            line = lang + dind + ',' + a['format']
+            if a.get('mb'):
+                line += ',' + a['mb'] + 'mb'
+            audios.append(line)
+
+        subs = []
+        for s in self.subtitle:
+            dind = '*' if s.get('default') == "1" else ''
+            subs.append(s['lang'] + dind)
+
         audio = '(' + ','.join(audios) + ')'
-        subs = [s['stream'] + ':' + s['lang'] + ':' + s.get('default', '') for s in self.subtitle]
         sub = '(' + ','.join(subs) + ')'
         buf = f"{self.path}, {self.filesize_mb}mb, {self.fps} fps, {self.res_width}x{self.res_height}, {runtime}, {self.vcodec}, audio={audio}, sub={sub}"
         return buf
@@ -71,8 +83,19 @@ class MediaInfo:
             for path in files:
                 mi = ffmpeg.fetch_details(path)
                 mins = int(mi.runtime / 60)
-                audios = [a['stream'] + ',' + a['lang'] + ',' + a['format'] + ',' + a.get('default',"") for a in mi.audio]
-                subs = [s['stream'] + ',' + s['lang'] + ',' + s.get('default', '') for s in mi.subtitle]
+                audios = []
+                for a in mi.audio:
+                    dind = '*' if a.get('default') == "1" else ''
+                    lang = a.get('lang', '???')
+                    line = lang + dind + ',' + a['format']
+                    if a.get('mb'):
+                        line += ',' + a['mb'] + 'mb'
+                    audios.append(line)
+
+                subs = []
+                for s in mi.subtitle:
+                    dind = '*' if s.get('default') == "1" else ''
+                    subs.append(s['lang'] + dind)
 
                 table.add_row(basename(mi.path),
                               str(mins)+"m",
@@ -177,27 +200,29 @@ class MediaInfo:
                 audio['format'] = stream['codec_name']
                 audio['default'] = "0"
                 if 'disposition' in stream:
-                    if 'default' in stream['disposition']:
-                        audio['default'] = stream['disposition']['default'] or "0"
+                    audio['default'] = str(stream['disposition'].get('default', 0))
                 if 'tags' in stream:
-                    if 'language' in stream['tags']:
-                        audio['lang'] = stream['tags']['language']
+                    tags = stream['tags']
+                    if 'language' in tags:
+                        audio['lang'] = tags['language']
                     else:
                         # derive the language
-                        for name, value in stream['tags'].items():
+                        for name, value in tags.items():
                             if name[0:9] == 'DURATION-':
                                 lang = name[9:]
                                 audio['lang'] = lang
                                 break
+                    if "NUMBER_OF_BYTES" in tags:
+                        audio['mb'] = str(int(int(tags["NUMBER_OF_BYTES"]) / 1024000))
+
                 minfo['audio'].append(audio)
-            elif stream['codec_type'] == 'subrip':
+            elif stream['codec_type'] in ('subtitle', 'subrip'):
                 sub = dict()
                 sub['stream'] = str(stream['index'])
                 sub['format'] = stream['codec_name']
                 sub['default'] = "0"
                 if 'disposition' in stream:
-                    if 'default' in stream['disposition']:
-                        sub['default'] = stream['disposition']['default'] or "0"
+                    sub['default'] = str(stream['disposition'].get('default', 0))
                 if 'tags' in stream:
                     if 'language' in stream['tags']:
                         sub['lang'] = stream['tags']['language']

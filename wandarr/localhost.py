@@ -42,8 +42,6 @@ class LocalHost(ManagedHost):
                 #
                 # build command line
                 #
-                remote_in_path = self.converted_path(in_path)
-                remote_out_path = self.converted_path(out_path)
 
                 video_options = self.video_cli.split(" ")
 
@@ -55,10 +53,10 @@ class LocalHost(ManagedHost):
                 #                                          job.media_info.subtitle)
                 #     if not stream_map:
                 #         continue            # require at least 1 audio track
-                cli = ['-y', *job.template.input_options_list(), '-i', remote_in_path,
+                cli = ['-y', *job.template.input_options_list(), '-i', in_path,
                        *video_options,
                        *job.template.output_options_list(self._manager.config), *stream_map,
-                       remote_out_path]
+                       out_path]
 
                 basename = os.path.basename(job.in_path)
 
@@ -109,6 +107,6 @@ class LocalHost(ManagedHost):
                         pass
 
             except Exception as ex:
-                print(traceback.format_exc())
+                self.log(traceback.format_exc())
             finally:
                 self.queue.task_done()
