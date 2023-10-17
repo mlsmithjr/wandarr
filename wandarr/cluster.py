@@ -251,6 +251,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                     try:
                         report = wandarr.status_queue.get(block=True, timeout=2)
                         host = "[bold]" + report['host'] + "[/bold]"
+                        report['host'] = host
                         basename = report['file']
                         if basename not in tasks:
                             tasks[basename] = progress.add_task(f"{basename}", total=100, host = host, comp = 0, speed = 0, status = '')

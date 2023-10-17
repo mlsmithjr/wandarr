@@ -63,6 +63,10 @@ class LocalHost(ManagedHost):
                 if super().dump_job_info(job, cli):
                     continue
 
+                opts_only = [*job.template.input_options_list(), *video_options,
+                       *job.template.output_options_list(self._manager.config), *stream_map]
+
+                print(f"{basename} -> ffmpeg {' '.join(opts_only)}")
                 wandarr.status_queue.put({'host': self.hostname,
                                       'file': basename,
                                       'completed': 0})
@@ -97,7 +101,13 @@ class LocalHost(ManagedHost):
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
-#                    self.log(f'Finished {job.in_path}')
+
+                        new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+                        wandarr.status_queue.put({'host': self.hostname,
+                                                  'file': basename,
+                                                  'completed': 100,
+                                                  'status': f'{new_filesize_mb}mb'})
+
                 elif code is not None:
                     self.log(f' Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
