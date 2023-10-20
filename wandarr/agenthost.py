@@ -7,11 +7,10 @@ import socket
 import wandarr
 from wandarr.agent import Agent
 from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
-from wandarr.utils import calculate_progress
 
 
 class AgentManagedHost(ManagedHost):
-    """Implementation of a agent host worker thread"""
+    """Implementation of an agent host worker thread"""
 
     def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
         super().__init__(hostname, props, queue, cluster)
@@ -27,13 +26,13 @@ class AgentManagedHost(ManagedHost):
         s.settimeout(2)
         try:
             s.connect((self.props.ip, Agent.PORT))
-            if self._manager.verbose:
+            if self._manager.VERBOSE:
                 self.log(f"checking if remote agent at {self.props.ip} is up")
             s.send(bytes("PING".encode()))
             s.settimeout(5)
             rsp = s.recv(4).decode()
             return rsp == "PONG"
-        except Exception as e:
+        except Exception:
             if wandarr.console:
                 wandarr.console.print(f":warning: Agent not running on {self.props.ip}")
             else:
@@ -61,24 +60,17 @@ class AgentManagedHost(ManagedHost):
             try:
                 job: EncodeJob = self.queue.get()
                 in_path = job.in_path
+                orig_file_size_mb = int(os.path.getsize(in_path) / (1024 * 1024))
 
                 #
                 # build command line
                 #
-                remote_in_path = in_path
-
                 video_options = self.video_cli.split(" ")
                 stream_map = super().map_streams(job, self._manager.config)
-                #
-                # stream_map = []
-                # if job.media_info.is_multistream() and self._manager.config.automap:
-                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                #                                          job.media_info.subtitle)
-                #     if not stream_map:
-                #         continue            # require at least 1 audio track
+
                 cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
                        *video_options,
-                       *job.template.output_options_list(self._manager.config), *stream_map]
+                       *job.template.output_options_list(), *stream_map]
 
                 basename = os.path.basename(job.in_path)
 
@@ -89,22 +81,21 @@ class AgentManagedHost(ManagedHost):
                 # Send to agent
                 #
                 s = socket.socket()
-                #s.settimeout(10)
 
                 wandarr.status_queue.put({'host': self.hostname,
-                                      'file': basename,
-                                      'completed': 0,
-                                      'status': 'Connect'})
+                                          'file': basename,
+                                          'completed': 0,
+                                          'status': 'Connect'})
 
-                if self._manager.verbose:
+                if self._manager.VERBOSE:
                     self.log(f"connect to '{self.props.ip}'", style="info")
 
                 s.connect((self.props.ip, Agent.PORT))
-                inputsize = os.path.getsize(in_path)
+                input_size = os.path.getsize(in_path)
                 tmpdir = self.props.working_dir
                 cmd_str = "$".join(cmd)
-                hello = f"HELLO|{inputsize}|{tmpdir}|{basename}|{cmd_str}"
-                if self._manager.verbose:
+                hello = f"HELLO|{input_size}|{tmpdir}|{basename}|{cmd_str}"
+                if self._manager.VERBOSE:
                     self.log("handshaking with remote agent", style="info")
                 s.send(bytes(hello.encode()))
                 rsp = s.recv(1024).decode()
@@ -113,9 +104,9 @@ class AgentManagedHost(ManagedHost):
                     continue
                 # send the file
                 wandarr.status_queue.put({'host': self.hostname,
-                                      'file': basename,
-                                      'status': 'Copying...'})
-#                self.log(f"sending {in_path} to agent")
+                                          'file': basename,
+                                          'status': 'Copying...'})
+                #                self.log(f"sending {in_path} to agent")
                 with open(in_path, "rb") as f:
                     while True:
                         buf = f.read(4096)
@@ -124,10 +115,11 @@ class AgentManagedHost(ManagedHost):
                             break
 
                 wandarr.status_queue.put({'host': self.hostname,
-                                      'file': basename,
-                                      'status': 'Running'})
+                                          'file': basename,
+                                          'status': 'Running'})
                 job_start = datetime.datetime.now()
-                finished, stats = self.ffmpeg.monitor_agent_ffmpeg(s, super().callback_wrapper(job), self.ffmpeg.monitor_agent)
+                finished, stats = self.ffmpeg.monitor_agent_ffmpeg(s, super().callback_wrapper(job),
+                                                                   self.ffmpeg.monitor_agent)
                 job_stop = datetime.datetime.now()
 
                 try:
@@ -139,11 +131,11 @@ class AgentManagedHost(ManagedHost):
                             filesize = int(sent_filesize)
                             tmp_file = in_path + ".tmp"
                             wandarr.status_queue.put({'host': self.hostname,
-                                                  'file': basename,
-                                                  'completed': 100,
-                                                  'status': 'Retrieving'})
+                                                      'file': basename,
+                                                      'completed': 100,
+                                                      'status': 'Retrieving'})
 
-                            if self._manager.verbose:
+                            if self._manager.VERBOSE:
                                 self.log(f"receiving ({filesize} bytes)")
 
                             with open(tmp_file, "wb") as out:
@@ -152,15 +144,16 @@ class AgentManagedHost(ManagedHost):
                                     out.write(blk)
                                     filesize -= len(blk)
 
-                            if not wandarr.keep_source:
+                            if not wandarr.KEEP_SOURCE:
                                 os.unlink(in_path)
                                 os.rename(tmp_file, in_path)
-                                wandarr.status_queue.put({'host': self.hostname,
-                                                      'file': basename,
-                                                      'completed': 100,
-                                                      'status': 'Complete'})
+                                new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
 
-#                            self.log(crayons.green(f'Finished {in_path}'))
+                                wandarr.status_queue.put({'host': self.hostname,
+                                                          'file': basename,
+                                                          'completed': 100,
+                                                          'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
+
                         elif parts[0] == "ERR":
                             self.log(f"Agent returned process error code '{parts[1]}'")
                         else:
@@ -170,7 +163,7 @@ class AgentManagedHost(ManagedHost):
                 except KeyboardInterrupt:
                     s.send(bytes("STOP".encode()))
 
-            except Exception as ex:
+            except Exception:
                 print(traceback.format_exc())
             finally:
                 self.queue.task_done()

@@ -27,9 +27,9 @@ def is_exceeded_threshold(pct_threshold: int, orig_size: int, new_size: int) -> 
 
 def files_from_file(queue_path) -> list:
     if not os.path.exists(queue_path):
-        print(f'Nothing to do.')
+        print('Nothing to do.')
         return []
-    with open(queue_path, 'r') as qf:
+    with open(queue_path, 'r', encoding="utf8") as qf:
         _files = [fn.rstrip() for fn in qf.readlines()]
         return _files
 
@@ -58,14 +58,14 @@ def calculate_progress(info: MediaInfo, stats: Dict) -> (int, int):
 
 
 def run(cmd):
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
-    output = p.communicate()[0].decode('utf-8')
-    return p.returncode, output
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False) as p:
+        output = p.communicate()[0].decode('utf-8')
+        return p.returncode, output
 
 
 def dump_stats(completed):
 
-    if wandarr.dry_run:
+    if wandarr.DRY_RUN:
         return
 
     paths = [p for p, _ in completed]

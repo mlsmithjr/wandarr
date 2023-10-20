@@ -33,6 +33,7 @@ class MountedManagedHost(ManagedHost):
             try:
                 job: EncodeJob = self.queue.get()
                 in_path = job.in_path
+                orig_file_size_mb = int(os.path.getsize(in_path) / (1024 * 1024))
 
                 #
                 # calculate paths
@@ -45,7 +46,7 @@ class MountedManagedHost(ManagedHost):
                     # fix the input path to match what the remote machine expects
                     #
                     remote_in_path, remote_out_path = self.props.substitute_paths(in_path, out_path)
-                    if wandarr.verbose:
+                    if wandarr.VERBOSE:
                         print(f"substituted {remote_in_path} for {in_path}")
                 #
                 # build command line
@@ -57,15 +58,9 @@ class MountedManagedHost(ManagedHost):
 
                 stream_map = super().map_streams(job, self._manager.config)
 
-                # stream_map = []
-                # if job.media_info.is_multistream() and self._manager.config.automap:
-                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                #                                          job.media_info.subtitle)
-                #     if not stream_map:
-                #         continue            # require at least 1 audio track
                 cmd = ['-y', *job.template.input_options_list(), '-i', f'"{remote_in_path}"',
                        *video_options,
-                       *job.template.output_options_list(self._manager.config), *stream_map,
+                       *job.template.output_options_list(), *stream_map,
                        f'"{remote_out_path}"']
 
                 basename = os.path.basename(job.in_path)
@@ -74,8 +69,8 @@ class MountedManagedHost(ManagedHost):
                     continue
 
                 wandarr.status_queue.put({'host': self.hostname,
-                                      'file': basename,
-                                      'completed': 0})
+                                          'file': basename,
+                                          'completed': 0})
                 #
                 # Start remote
                 #
@@ -84,7 +79,6 @@ class MountedManagedHost(ManagedHost):
                                               super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
-                #print(f"host {self.hostname} done with code {code}")
                 #
                 # process completed, check results and finish
                 #
@@ -96,30 +90,33 @@ class MountedManagedHost(ManagedHost):
 
                 if code == 0:
                     if not filter_threshold(job.template, in_path, out_path):
-#                        self.log(
-#                            f'Encoding file {in_path} did not meet minimum savings threshold, skipped')
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(out_path)
                         continue
 
-                    if not wandarr.keep_source:
-                        if wandarr.verbose:
+                    if not wandarr.KEEP_SOURCE:
+                        if wandarr.VERBOSE:
                             self.log('removing ' + in_path)
                         os.remove(in_path)
-                        if wandarr.verbose:
+                        if wandarr.VERBOSE:
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
-                    #self.log(crayons.green(f'Finished {job.in_path}'))
+
+                        new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+                        wandarr.status_queue.put({'host': self.hostname,
+                                                  'file': basename,
+                                                  'completed': 100,
+                                                  'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
                 elif code is not None:
                     self.log(f'Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
                     try:
                         os.remove(out_path)
-                    except:
+                    except OSError:
                         pass
 
-            except Exception as ex:
+            except Exception:
                 print(traceback.format_exc())
             finally:
                 self.queue.task_done()

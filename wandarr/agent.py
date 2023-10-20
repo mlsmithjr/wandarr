@@ -5,7 +5,6 @@ import time
 
 
 class Agent:
-
     PORT = 9567
 
     def run(self):
@@ -89,7 +88,7 @@ class Agent:
                                 print("Client vetoed the transcode, cleaning up")
                                 vetoed = True
                                 break
-                            elif confirmation != "ACK!":
+                            if confirmation != "ACK!":
                                 proc.kill()
                                 print(f"Protocol error - expected ACK from client, got {confirmation}")
                                 print("Cleaning up")

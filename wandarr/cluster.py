@@ -8,9 +8,10 @@ from queue import Queue
 import queue
 from threading import Thread, Lock
 from typing import Dict, List
+from rich.console import Console
 
 import wandarr
-from wandarr import verbose
+from wandarr import VERBOSE
 from wandarr.agenthost import AgentManagedHost
 from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
 from wandarr.config import ConfigFile
@@ -31,14 +32,14 @@ class Cluster(Thread):
         :param ssh:         Path to local ssh
         """
         super().__init__(daemon=True)
-        self.queues: Dict[str, Queue] = dict()
+        self.queues: Dict[str, Queue] = {}
         self.ssh = ssh
-        self.hosts: List[ManagedHost] = list()
+        self.hosts: List[ManagedHost] = []
         self.config = config
-        self.verbose = verbose
+        self.verbose = VERBOSE
         self.ffmpeg = FFmpeg(config.ffmpeg_path)
         self.lock = Cluster.terminal_lock
-        self.completed: List = list()
+        self.completed: List = []
 
         down_hosts = []
         for host, props in config.hosts.items():
@@ -68,58 +69,70 @@ class Cluster(Thread):
                 for qname, cli in eng_qualities.items():
                     if host in down_hosts:
                         continue
-
                     if qname not in self.queues:
                         self.queues[qname] = Queue()
 
-                    _h = None
-                    if host_type == 'local':
-                        _h = LocalHost(host, host_props, self.queues[qname], self)
-                        if not _h.validate_settings():
-                            sys.exit(1)
-                        _h.video_cli = cli
-                        _h.qname = qname
-                        self.hosts.append(_h)
+                    match host_type:
+                        case "local":
+                            self._init_host_local(host, host_props, qname, cli)
 
-                    elif host_type == 'mounted':
-                        _h = MountedManagedHost(host, host_props, self.queues[qname], self)
-                        if _h.host_ok():
-                            if not _h.validate_settings():
-                                sys.exit(1)
-                            _h.video_cli = cli
-                            _h.qname = qname
-                            self.hosts.append(_h)
-                        else:
-                            down_hosts.append(host)
-                            continue
+                        case "mounted":
+                            if not self._init_host_mounted(host, host_props, qname, cli):
+                                down_hosts.append(host)
+                                continue
 
-                    elif host_type == 'streaming':
-                        _h = StreamingManagedHost(host, host_props, self.queues[qname], self)
-                        if _h.host_ok():
-                            if not _h.validate_settings():
-                                sys.exit(1)
-                            _h.video_cli = cli
-                            _h.qname = qname
-                            self.hosts.append(_h)
-                        else:
-#                            print(f"Host {host} not available - skipping")
-                            down_hosts.append(host)
-                            continue
+                        case "streaming":
+                            if not self._init_host_streaming(host, host_props, qname, cli):
+                                down_hosts.append(host)
+                                continue
 
-                    elif host_type == 'agent':
-                        _h = AgentManagedHost(host, host_props, self.queues[qname], self)
-                        if _h.host_ok():
-                            if not _h.validate_settings():
-                                sys.exit(1)
-                            _h.video_cli = cli
-                            _h.qname = qname
-                            self.hosts.append(_h)
-                        else:
-#                            print(f"Host {host} not available - skipping")
-                            down_hosts.append(host)
-                            continue
-                    else:
-                        print(f'Unknown cluster host type "{host_type}" - skipping')
+                        case "agent":
+                            if not self._init_host_agent(host, host_props, qname, cli):
+                                down_hosts.append(host)
+                                continue
+                        case _:
+                            print(f'Unknown cluster host type "{host_type}" - skipping')
+
+    def _init_host_local(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+        _h = LocalHost(host, host_props, self.queues[qname], self)
+        if not _h.validate_settings():
+            sys.exit(1)
+        _h.video_cli = cli
+        _h.qname = qname
+        self.hosts.append(_h)
+
+    def _init_host_mounted(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+        _h = MountedManagedHost(host, host_props, self.queues[qname], self)
+        if _h.host_ok():
+            if not _h.validate_settings():
+                sys.exit(1)
+            _h.video_cli = cli
+            _h.qname = qname
+            self.hosts.append(_h)
+            return True
+        return False
+
+    def _init_host_streaming(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+        _h = StreamingManagedHost(host, host_props, self.queues[qname], self)
+        if _h.host_ok():
+            if not _h.validate_settings():
+                sys.exit(1)
+            _h.video_cli = cli
+            _h.qname = qname
+            self.hosts.append(_h)
+            return True
+        return False
+
+    def _init_host_agent(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+        _h = AgentManagedHost(host, host_props, self.queues[qname], self)
+        if _h.host_ok():
+            if not _h.validate_settings():
+                sys.exit(1)
+            _h.video_cli = cli
+            _h.qname = qname
+            self.hosts.append(_h)
+            return True
+        return False
 
     def enqueue(self, file, template_name: str):
         """Add a media file to this cluster queue.
@@ -127,14 +140,14 @@ class Cluster(Thread):
            The profile will be selected once a host is assigned to the work
         """
         if template_name is None:
-            print(f"No template specified")
+            print("No template specified")
             return None, None
         if template_name not in self.config.templates:
             print(f"Template {template_name} not found")
             return None, None
 
         path = os.path.abspath(file)  # convert to full path so that rule filtering can work
-        if wandarr.verbose:
+        if wandarr.VERBOSE:
             print('matching ' + path)
 
         media_info = self.ffmpeg.fetch_details(path)
@@ -143,14 +156,15 @@ class Cluster(Thread):
             print(f'File not found: {path}')
             return None, None
         if media_info.valid:
-            if wandarr.verbose:
+            if wandarr.VERBOSE:
                 print(str(media_info))
 
             template = self.config.templates[template_name]
 
             video_quality = template.video_select()
             if video_quality not in self.queues:
-                print(f"Cannot match quality '{video_quality}' to any related host engines. Make sure there is at least one host with an engine that supports this quality.")
+                print((f"Cannot match quality '{video_quality}' to any related host engines. "
+                      "Make sure there is at least one host with an engine that supports this quality."))
                 sys.exit(1)
             job = EncodeJob(file, media_info, template)
             self.queues[video_quality].put(job)
@@ -169,7 +183,7 @@ class Cluster(Thread):
             return
 
         for host in self.hosts:
-            if wandarr.verbose:
+            if wandarr.VERBOSE:
                 print(f"Starting {host.name} thread with queue {host.qname}")
             host.start()
 
@@ -188,10 +202,9 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
 
         There is one thread for the cluster that manages multiple hosts, each having their own thread.
     """
-    completed = list()
+    completed = []
 
     if config.rich():
-        from rich.console import Console
         wandarr.console = Console()
 
     if not config.hosts:
@@ -215,7 +228,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
     else:
         cluster.start()
 
-    def sig_handler(signal, frame):
+    def sig_handler(sig, frame):
         if cluster.is_alive():
             cluster.terminate()
         os.system("stty sane")
@@ -225,9 +238,8 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
 
     if not testing:
 
-        if config.rich() and not wandarr.verbose:
+        if config.rich() and not wandarr.VERBOSE:
             from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
-            from rich import rule
 
             progress = Progress(
                 TextColumn("{task.fields[host]}"),
@@ -238,10 +250,10 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                 TextColumn("Comp={task.fields[comp]}"),
                 TextColumn("Speed={task.fields[speed]}"),
                 TextColumn("{task.fields[status]}"),
-                console = wandarr.console
+                console=wandarr.console
             )
 
-            wandarr.console.print(rule.Rule(title="Encoding"))
+            wandarr.console.print("\n")
 
             with progress:
                 tasks = {}
@@ -254,7 +266,8 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                         report['host'] = host
                         basename = report['file']
                         if basename not in tasks:
-                            tasks[basename] = progress.add_task(f"{basename}", total=100, host = host, comp = 0, speed = 0, status = '')
+                            tasks[basename] = progress.add_task(f"{basename}", total=100, host=host,
+                                                                comp=0, speed=0, status='')
 
                         taskid = tasks[basename]
                         # add an emoji to call attention to the skipped job
@@ -262,7 +275,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                             report["status"] = ":stop_sign: " + report["status"]
                         progress.update(taskid, **report)
                         wandarr.status_queue.task_done()
-                    except queue.Empty as e:
+                    except queue.Empty:
                         busy = False
                         if cluster.is_alive():
                             busy = True
@@ -285,7 +298,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
 #                    print(f'{host:20}|{basename}: speed: {speed}x, comp: {comp}%, done: {done:3}%, status: {status}')
                     sys.stdout.flush()
                     wandarr.status_queue.task_done()
-                except queue.Empty as e:
+                except queue.Empty:
                     busy = False
                     if cluster.is_alive():
                         busy = True

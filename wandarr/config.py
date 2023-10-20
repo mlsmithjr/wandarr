@@ -1,6 +1,6 @@
-
 import os
-from typing import Dict, Any, List
+import sys
+from typing import Dict, Any
 import yaml
 
 from wandarr.template import Template
@@ -8,7 +8,7 @@ from wandarr.template import Template
 
 class Engine:
 
-    def __init__(self, name : str, definition: Dict):
+    def __init__(self, name: str, definition: Dict):
         self.name = name
         self.definition = definition
 
@@ -28,15 +28,15 @@ class ConfigFile:
         self.engines: Dict[str, Engine] = {}
         self.hosts: Dict = {}
 
-        self.directives = dict()
+        self.directives = {}
         if configuration is not None:
             if isinstance(configuration, Dict):
                 yml = configuration
             else:
                 if not os.path.exists(configuration):
                     print(f'Configuration file "{configuration}" not found')
-                    exit(1)
-                with open(configuration, 'r') as f:
+                    sys.exit(1)
+                with open(configuration, 'r', encoding="utf8") as f:
                     yml = yaml.load(f, Loader=yaml.Loader)
             self.settings = yml['config']
 
@@ -44,7 +44,9 @@ class ConfigFile:
             config = yml.get("config", {})
             ffmpeg_path = config.get("ffmpeg")
             if not os.path.exists(ffmpeg_path):
-                raise ValueError(f"ffmpeg not found at configured location {ffmpeg_path} - please correct config/ffmpeg setting")
+                raise ValueError(
+                    (f"ffmpeg not found at configured location {ffmpeg_path} "
+                     "- please correct config/ffmpeg setting"))
 
             #
             # load cluster hosts

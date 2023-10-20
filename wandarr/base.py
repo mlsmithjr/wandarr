@@ -100,18 +100,25 @@ class RemoteHostProperties:
 
     def validate_settings(self):
         """Validate required settings"""
-        msg = list()
-        'type' in self.props or msg.append(f'Missing "type"')
-        'status' in self.props or msg.append(f'Missing "status"')
+        msg = []
+        if 'type' not in self.props:
+            msg.append('Missing "type"')
+        if 'status' not in self.props:
+            msg.append('Missing "status"')
         if self.props['type'] in ['mounted', 'streaming']:
-            'ip' in self.props or msg.append(f'Missing "ip"')
-            'user' in self.props or msg.append(f'Missing "user"')
-            'os' in self.props or msg.append(f'Missing "os"')
-            if 'os' in self.props:
+            if 'ip' not in self.props:
+                msg.append('Missing "ip"')
+            if 'user' not in self.props:
+                msg.append('Missing "user"')
+            if 'os' not in self.props:
+                msg.append('Missing "os"')
+            else:
                 _os = self.props['os']
-                _os in ['macos', 'linux', 'win10'] or msg.append(f'Unsupported "os" type {_os}')
+                if _os not in ['macos', 'linux', 'win10']:
+                    msg.append(f'Unsupported "os" type {_os}')
         if self.props['type'] == 'streaming':
-            'working_dir' in self.props or msg.append(f'Missing "working_dir"')
+            if 'working_dir' not in self.props:
+                msg.append('Missing "working_dir"')
         if len(msg) > 0:
             print(f'Validation error(s) for host {self.name}:')
             print('\n'.join(msg))
@@ -152,10 +159,11 @@ class ManagedHost(Thread):
         self.hostname = hostname
         self.props = props
         self.queue = queue
-        self._complete = list()
+        self._complete = []
         self._manager = cluster
         self.ffmpeg = FFmpeg(props.ffmpeg_path)
         self.video_cli = None
+        self.qname = None  # assigned queue
 
     def validate_settings(self):
         return self.props.validate_settings()
@@ -194,8 +202,7 @@ class ManagedHost(Thread):
         if self.props.is_windows():
             path = '"' + path + '"'
             return str(PureWindowsPath(path))
-        else:
-            return str(PosixPath(path))
+        return str(PosixPath(path))
 
     def ssh_cmd(self):
         return [self._manager.ssh, self.props.user + '@' + self.props.ip]
@@ -206,19 +213,19 @@ class ManagedHost(Thread):
             ping = [r'C:\WINDOWS\system32\ping.exe', '-n', '1', '-w', '5', addr]
         else:
             ping = ['ping', '-c', '1', '-W', '5', addr]
-        p = subprocess.Popen(ping, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
-        p.communicate()
-        if p.returncode != 0:
-            self.log(f"Host at address {addr} cannot be reached - skipped", style="magenta")
-            return False
-        return True
+        with subprocess.Popen(ping, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False) as p:
+            p.communicate()
+            if p.returncode != 0:
+                self.log(f"Host at address {addr} cannot be reached - skipped", style="magenta")
+                return False
+            return True
 
     def ssh_test_ok(self):
         try:
             remote_cmd = 'dir' if self.props.is_windows() else 'ls'
             # remote_cmd = 'ls'
             ssh_test = subprocess.run([*self.ssh_cmd(), remote_cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                     shell=False, timeout=10)
+                                      shell=False, timeout=10, check=False)
             if ssh_test.returncode != 0:
                 self.log('ssh test failed with the following output: ' + str(ssh_test.stderr), style="magenta")
                 return False
@@ -230,8 +237,8 @@ class ManagedHost(Thread):
         return self.ping_test_ok() and self.ssh_test_ok()
 
     def run_process(self, *args):
-        p = subprocess.run(*args)
-        if self._manager.verbose:
+        p = subprocess.run(*args, check=False)
+        if self._manager.VERBOSE:
             self.log(' '.join(*args))
             if p.returncode != 0:
                 self.log(p.stderr.decode("utf-8"))
@@ -250,29 +257,29 @@ class ManagedHost(Thread):
     def callback_wrapper(self, job: EncodeJob):
         def log_callback(stats):
             if not stats:
-                return
+                return False
+
             pct_done, pct_comp = calculate_progress(job.media_info, stats)
             wandarr.status_queue.put({'host': self.hostname,
-                                  'file': os.path.basename(job.in_path),
-                                  'speed': f"{stats['speed']}x",
-                                  'comp': f"{pct_comp}%",
-                                  'completed': pct_done})
-
-            if job.should_abort(pct_done, pct_comp):
-                # compression goal (threshold) not met, kill the job and waste no more time...
-                # self.log(f'Encoding of {basename} cancelled and skipped due to threshold not met')
-                wandarr.status_queue.put({'host': self.hostname,
                                       'file': os.path.basename(job.in_path),
                                       'speed': f"{stats['speed']}x",
                                       'comp': f"{pct_comp}%",
-                                      'completed': 100,
-                                      'status': "Skipped (threshold)"})
+                                      'completed': pct_done})
+
+            if job.should_abort(pct_done, pct_comp):
+                wandarr.status_queue.put({'host': self.hostname,
+                                          'file': os.path.basename(job.in_path),
+                                          'speed': f"{stats['speed']}x",
+                                          'comp': f"{pct_comp}%",
+                                          'completed': 100,
+                                          'status': "Skipped (threshold)"})
                 return True
             return False
+
         return log_callback
 
     def dump_job_info(self, job: EncodeJob, cli):
-        if wandarr.dry_run:
+        if wandarr.DRY_RUN:
             #
             # display useful information
             #

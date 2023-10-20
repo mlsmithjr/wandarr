@@ -1,5 +1,9 @@
 ## Changes
 
+#### 10/20/2023 v1.0.4
+* Code refactoring cleanup
+* Misc small bug fixes related to parsing media technical details
+
 #### 10/16/2023 v1.0.3
 * Continue to make small usability tweaks
 * Switch to using ffprobe for primary tech details, ffmpeg secondary

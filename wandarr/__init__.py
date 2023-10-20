@@ -1,4 +1,4 @@
-__version__ = '1.0.3'
+__version__ = '1.0.4'
 __author__ = 'Marshall L Smith Jr <marshallsmithjr@gmail.com>'
 __license__ = 'GPLv3'
 
@@ -8,10 +8,10 @@ __license__ = 'GPLv3'
 #
 from queue import Queue
 
-verbose = False
-keep_source = False
-dry_run = False
-show_info = False
+VERBOSE = False
+KEEP_SOURCE = False
+DRY_RUN = False
+SHOW_INFO = False
 
 console = None
 

@@ -11,7 +11,6 @@ from typing import Dict, Any, Optional
 import json
 
 from wandarr.media import MediaInfo
-from wandarr.processor import Processor
 
 status_re = re.compile(
     r'^.* fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)kB time=(?P<time>\d\d:\d\d:\d\d\.\d\d) .*speed=(?P<speed>.*?)x')
@@ -19,11 +18,62 @@ status_re = re.compile(
 _CHARSET: str = sys.getdefaultencoding()
 
 
-class FFmpeg(Processor):
+class FFmpeg:
 
     def __init__(self, ffmpeg_path: str):
-        super().__init__(ffmpeg_path)
+        self.path = ffmpeg_path
+        self.log_path: PurePath = None
+        self.last_command = ''
         self.monitor_interval = 10
+
+    def execute_and_monitor(self, params, event_callback, monitor) -> Optional[int]:
+        self.last_command = ' '.join([self.path, *params])
+        with subprocess.Popen([self.path,
+                               *params],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,
+                              universal_newlines=True,
+                              shell=False) as p:
+
+            for stats in monitor(p):
+                if event_callback is not None:
+                    veto = event_callback(stats)
+                    if veto:
+                        p.kill()
+                        return None
+            return p.returncode
+
+    def monitor_agent_ffmpeg(self, sock, event_callback, monitor):
+        stats = None
+        for stats in monitor(sock):
+            if isinstance(stats, str):
+                break
+            if event_callback is not None:
+                veto = event_callback(stats)
+                if veto:
+                    sock.send(bytes("VETO".encode()))
+                    return False, stats
+        return True, stats
+
+    def remote_execute_and_monitor(self, sshcli: str, user: str, ip: str, params: list, event_callback, monitor) -> Optional[int]:
+        cli = [sshcli, '-v', user + '@' + ip, self.path, *params]
+        self.last_command = ' '.join(cli)
+        with subprocess.Popen(cli,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,
+                              universal_newlines=True,
+                              shell=False) as p:
+            try:
+                for stats in monitor(p):
+                    if event_callback is not None:
+                        veto = event_callback(stats)
+                        if veto:
+                            p.kill()
+                            return None
+                return p.returncode
+            except KeyboardInterrupt:
+                p.kill()
+        return None
 
     def fetch_details(self, _path: str) -> MediaInfo:
         """Use ffmpeg to get media information
@@ -40,7 +90,7 @@ class FFmpeg(Processor):
             mi = self.fetch_details_ffprobe(_path)
             if mi:
                 return mi
-        except Exception as ex:
+        except Exception:
             pass
 
         #
@@ -73,12 +123,13 @@ class FFmpeg(Processor):
         # Create a transaction log for this run, to be left behind if an error is encountered.
         #
         suffix = randint(100, 999)
-        self.log_path: PurePath = PurePath(gettempdir(), 'wandarr-' + threading.current_thread().name + '-' +
+        self.log_path: PurePath = PurePath(gettempdir(), 'wandarr-' +
+                                           threading.current_thread().name + '-' +
                                            str(suffix) + '.log')
 
         info: Dict[str, Any] = {}
 
-        with open(str(self.log_path), 'w') as logfile:
+        with open(str(self.log_path), 'w', encoding="utf8") as logfile:
             while proc.poll() is None:
                 line = proc.stdout.readline()
                 logfile.write(line)

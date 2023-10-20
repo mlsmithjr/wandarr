@@ -7,7 +7,7 @@ from tempfile import gettempdir
 
 import wandarr
 from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
-from wandarr.utils import calculate_progress, filter_threshold, run, get_local_os_type
+from wandarr.utils import filter_threshold, run, get_local_os_type
 
 
 class StreamingManagedHost(ManagedHost):
@@ -62,15 +62,9 @@ class StreamingManagedHost(ManagedHost):
 
                 stream_map = super().map_streams(job, self._manager.config)
 
-                # stream_map = []
-                # if job.media_info.is_multistream() and self._manager.config.automap:
-                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                #                                          job.media_info.subtitle)
-                #     if not stream_map:
-                #         continue            # require at least 1 audio track
                 cmd = ['-y', *job.template.input_options_list(), '-i', self.converted_path(remote_in_path),
                        *video_options,
-                       *job.template.output_options_list(self._manager.config), *stream_map,
+                       *job.template.output_options_list(), *stream_map,
                        self.converted_path(remote_out_path)]
                 cli = [*ssh_cmd, *cmd]
 
@@ -98,7 +92,7 @@ class StreamingManagedHost(ManagedHost):
                 code, output = run(scp)
                 if code != 0:
                     self.log('Unknown error copying source to remote - media skipped', style="magenta")
-                    if self._manager.verbose:
+                    if self._manager.VERBOSE:
                         self.log(output)
                     continue
 
@@ -143,10 +137,10 @@ class StreamingManagedHost(ManagedHost):
                         continue
                     self.complete(in_path, (job_stop - job_start).seconds)
 
-                    if not wandarr.keep_source:
+                    if not wandarr.KEEP_SOURCE:
                         os.rename(retrieved_copy_name, retrieved_copy_name[0:-4])
                         retrieved_copy_name = retrieved_copy_name[0:-4]
-                        if wandarr.verbose:
+                        if wandarr.VERBOSE:
                             self.log(f'moving media to {in_path}')
                         shutil.move(retrieved_copy_name, in_path)
                     #self.log(f'Finished {in_path}')
@@ -165,7 +159,7 @@ class StreamingManagedHost(ManagedHost):
                 else:
                     self.run_process([*ssh_cmd, f'"rm {remote_out_path}"'])
 
-            except Exception as ex:
+            except Exception:
                 print(traceback.format_exc())
             finally:
                 self.queue.task_done()

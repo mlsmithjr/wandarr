@@ -34,6 +34,7 @@ class LocalHost(ManagedHost):
                 job: EncodeJob = self.queue.get()
                 in_path = job.in_path
 
+                orig_file_size_mb = int(os.path.getsize(in_path) / (1024 * 1024))
                 #
                 # calculate paths
                 #
@@ -47,15 +48,9 @@ class LocalHost(ManagedHost):
 
                 stream_map = super().map_streams(job, self._manager.config)
 
-                # stream_map = []
-                # if job.media_info.is_multistream() and self._manager.config.automap:
-                #     stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
-                #                                          job.media_info.subtitle)
-                #     if not stream_map:
-                #         continue            # require at least 1 audio track
                 cli = ['-y', *job.template.input_options_list(), '-i', in_path,
                        *video_options,
-                       *job.template.output_options_list(self._manager.config), *stream_map,
+                       *job.template.output_options_list(), *stream_map,
                        out_path]
 
                 basename = os.path.basename(job.in_path)
@@ -64,12 +59,12 @@ class LocalHost(ManagedHost):
                     continue
 
                 opts_only = [*job.template.input_options_list(), *video_options,
-                       *job.template.output_options_list(self._manager.config), *stream_map]
+                             *job.template.output_options_list(), *stream_map]
 
                 print(f"{basename} -> ffmpeg {' '.join(opts_only)}")
                 wandarr.status_queue.put({'host': self.hostname,
-                                      'file': basename,
-                                      'completed': 0})
+                                          'file': basename,
+                                          'completed': 0})
                 #
                 # Start process
                 #
@@ -93,11 +88,11 @@ class LocalHost(ManagedHost):
                         os.remove(out_path)
                         continue
 
-                    if not wandarr.keep_source:
-                        if wandarr.verbose:
+                    if not wandarr.KEEP_SOURCE:
+                        if wandarr.VERBOSE:
                             self.log('removing ' + in_path)
                         os.remove(in_path)
-                        if wandarr.verbose:
+                        if wandarr.VERBOSE:
                             self.log('renaming ' + out_path)
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
@@ -106,17 +101,17 @@ class LocalHost(ManagedHost):
                         wandarr.status_queue.put({'host': self.hostname,
                                                   'file': basename,
                                                   'completed': 100,
-                                                  'status': f'{new_filesize_mb}mb'})
+                                                  'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
 
                 elif code is not None:
                     self.log(f' Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
                     try:
                         os.remove(out_path)
-                    except:
+                    except OSError:
                         pass
 
-            except Exception as ex:
+            except Exception:
                 self.log(traceback.format_exc())
             finally:
                 self.queue.task_done()

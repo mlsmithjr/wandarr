@@ -1,21 +1,44 @@
-
 import os
 import re
 from datetime import timedelta
 from os.path import basename
 from typing import Dict, Optional, List
 
-import wandarr
-from wandarr import verbose
-
-#video_re = re.compile(r'^.*Duration: (\d+):(\d+):.* Stream .*: Video: (\w+).*, (\w+)[(,].* (\d+)x(\d+).* (\d+)(\.\d.)? fps,.*$',
-#                      re.DOTALL)
-
+from rich.table import Table
+from rich.console import Console
 
 video_dur = re.compile(r".*Duration: (\d+):(\d+):(\d+)", re.DOTALL)
-video_info = re.compile(r'.*Stream #0:(\d+)(?:\(\w+\))?: Video: (\w+).*, (yuv\w+)[(,].* (\d+)x(\d+).* (\d+)(\.\d.)? fps', re.DOTALL)
-audio_info = re.compile(r'^\s+Stream #0:(?P<stream>\d+)(\((?P<lang>\w+)\))?: Audio: (?P<format>\w+).*?(?P<default>\(default\))?$', re.MULTILINE)
+video_info = re.compile(
+    r'.*Stream #0:(\d+)(?:\(\w+\))?: Video: (\w+).*, (yuv\w+)[(,].* (\d+)x(\d+).* (\d+)(\.\d.)? fps', re.DOTALL)
+audio_info = re.compile(
+    r'^\s+Stream #0:(?P<stream>\d+)(\((?P<lang>\w+)\))?: Audio: (?P<format>\w+).*?(?P<default>\(default\))?$',
+    re.MULTILINE)
 subtitle_info = re.compile(r'^\s+Stream #0:(?P<stream>\d+)(\((?P<lang>\w+)\))?: Subtitle:', re.MULTILINE)
+
+
+class StreamInfoWrapper:
+    def __init__(self, data: dict):
+        self.data = data
+
+    @property
+    def stream(self) -> int:
+        return self.data.get("stream", -1)
+
+    @property
+    def format(self) -> str:
+        return self.data.get("format", "???")
+
+    @property
+    def default(self) -> str:
+        return self.data.get("default", "0")
+
+    @property
+    def lang(self) -> str:
+        return self.data.get("lang", "???")
+
+    @property
+    def size_mb(self) -> str:
+        return self.data.get("mb", 0)
 
 
 class MediaInfo:
@@ -30,12 +53,12 @@ class MediaInfo:
         self.stream = info['stream']
         self.res_height = info['res_height']
         self.res_width = info['res_width']
-        self.runtime = info['runtime']
+        self.runtime = info.get('runtime', 0)
         self.filesize_mb = info['filesize_mb']
         self.fps = info['fps']
         self.colorspace = info['colorspace']
-        self.audio = info['audio']
-        self.subtitle = info['subtitle']
+        self.audio: List[StreamInfoWrapper] = info['audio']
+        self.subtitle: List[StreamInfoWrapper] = info['subtitle']
 
     def __str__(self):
         runtime = "{:0>8}".format(str(timedelta(seconds=self.runtime)))
@@ -45,17 +68,17 @@ class MediaInfo:
 
         audios = []
         for a in self.audio:
-            dind = '*' if a.get('default') == "1" else ''
-            lang = a.get("lang", "???")
-            line = lang + dind + ',' + a['format']
-            if a.get('mb'):
-                line += ',' + a['mb'] + 'mb'
+            dind = '*' if a.default == "1" else ''
+            lang = a.lang
+            line = lang + dind + ',' + a.format
+            if a.size_mb:
+                line += ',' + a.size_mb + 'mb'
             audios.append(line)
 
         subs = []
         for s in self.subtitle:
-            dind = '*' if s.get('default') == "1" else ''
-            subs.append(s['lang'] + dind)
+            dind = '*' if s.default == "1" else ''
+            subs.append(s.lang + dind)
 
         audio = '(' + ','.join(audios) + ')'
         sub = '(' + ','.join(subs) + ')'
@@ -65,9 +88,6 @@ class MediaInfo:
     @staticmethod
     def show_info(use_rich, files, ffmpeg):
         if use_rich:
-            from rich.table import Table
-            from rich.console import Console
-
             console = Console()
             table = Table(title="Technical Details")
 
@@ -85,20 +105,20 @@ class MediaInfo:
                 mins = int(mi.runtime / 60)
                 audios = []
                 for a in mi.audio:
-                    dind = '*' if a.get('default') == "1" else ''
-                    lang = a.get('lang', '???')
-                    line = lang + dind + ',' + a['format']
-                    if a.get('mb'):
-                        line += ',' + a['mb'] + 'mb'
+                    dind = '*' if a.default == "1" else ''
+                    lang = a.lang
+                    line = lang + dind + ',' + a.format
+                    if a.size_mb:
+                        line += ',' + a.size_mb + 'mb'
                     audios.append(line)
 
                 subs = []
                 for s in mi.subtitle:
-                    dind = '*' if s.get('default') == "1" else ''
-                    subs.append(s['lang'] + dind)
+                    dind = '*' if s.default == "1" else ''
+                    subs.append(s.lang + dind)
 
                 table.add_row(basename(mi.path),
-                              str(mins)+"m",
+                              str(mins) + "m",
                               mi.vcodec,
                               f"{mi.res_width}x{mi.res_height}",
                               str(round(mi.filesize_mb, 1)),
@@ -115,35 +135,39 @@ class MediaInfo:
         return len(self.audio) > 1 or len(self.subtitle) > 1
 
     @staticmethod
-    def parse_ffmpeg_details(_path, output):
-
-        match1 = video_dur.match(output)
-        if match1 is None or len(match1.groups()) < 3:
-            print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
-            return MediaInfo(None)
-
-        match2 = video_info.match(output)
-        if match2 is None or len(match2.groups()) < 5:
-            print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
-            return MediaInfo(None)
-
-        audio_tracks = list()
+    def _parse_regex_audio(output: str) -> list:
+        audio_tracks = []
         for audio_match in audio_info.finditer(output):
             ainfo = audio_match.groupdict()
             if ainfo['lang'] is None:
-                ainfo['lang'] = 'und'   # set as (und)efined
+                ainfo['lang'] = 'und'  # set as (und)efined
             if ainfo['default'] is None:
                 ainfo['default'] = "0"
-            audio_tracks.append(ainfo)
+            audio_tracks.append(StreamInfoWrapper(ainfo))
+        return audio_tracks
 
-        subtitle_tracks = list()
+    @staticmethod
+    def _parse_regex_subtitle(output: str) -> list:
+        subtitle_tracks = []
         for subt_match in subtitle_info.finditer(output):
             sinfo = subt_match.groupdict()
             if sinfo['lang'] is None:
                 sinfo['lang'] = 'und'
             sinfo['default'] = "0"
-            subtitle_tracks.append(sinfo)
+            subtitle_tracks.append(StreamInfoWrapper(sinfo))
+        return subtitle_tracks
 
+    @staticmethod
+    def _parse_regex_video(_path: str, output: str) -> Optional[dict]:
+        match1 = video_dur.match(output)
+        if match1 is None or len(match1.groups()) < 3:
+            print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
+            return None
+
+        match2 = video_info.match(output)
+        if match2 is None or len(match2.groups()) < 5:
+            print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
+            return None
         _dur_hrs, _dur_mins, _dur_secs = match1.group(1, 2, 3)
         _id, _codec, _colorspace, _res_width, _res_height, fps = match2.group(1, 2, 3, 4, 5, 6)
         filesize = os.path.getsize(_path) / (1024 * 1024)
@@ -158,81 +182,105 @@ class MediaInfo:
             'filesize_mb': filesize,
             'fps': int(fps),
             'colorspace': _colorspace,
-            'audio': audio_tracks,
-            'subtitle': subtitle_tracks
         }
-        return MediaInfo(minfo)
+        return minfo
+
+    @staticmethod
+    def parse_ffmpeg_details(_path, output):
+
+        info = MediaInfo._parse_regex_video(_path, output)
+        audio_tracks = MediaInfo._parse_regex_audio(output)
+        subtitle_tracks = MediaInfo._parse_regex_subtitle(output)
+
+        info['audio'] = audio_tracks,
+        info['subtitle'] = subtitle_tracks
+
+        return MediaInfo(info)
+
+    @staticmethod
+    def _parse_json_video(_path: str, stream: dict, minfo: dict):
+        minfo['path'] = _path
+        minfo['vcodec'] = stream['codec_name']
+        minfo['stream'] = str(stream['index'])
+        minfo['res_width'] = stream['width']
+        minfo['res_height'] = stream['height']
+        minfo['filesize_mb'] = os.path.getsize(_path) / (1024 * 1024)
+        fr_parts = stream['r_frame_rate'].split('/')
+        fr = int(int(fr_parts[0]) / int(fr_parts[1]))
+        minfo['fps'] = str(fr)
+        minfo['colorspace'] = stream['pix_fmt']
+        if 'duration' in stream:
+            minfo['runtime'] = int(float(stream['duration']))
+        else:
+            if 'tags' in stream:
+                for name, value in stream['tags'].items():
+                    if name[0:8] == 'DURATION':
+                        hh, mm, ss = value.split(':')
+                        duration = (int(float(hh)) * 3600) + (int(float(mm)) * 60) + int(float(ss))
+                        minfo['runtime'] = duration
+                        break
+
+    @staticmethod
+    def _parse_json_audio(stream: Dict, minfo: Dict):
+        audio = {}
+        audio['stream'] = str(stream['index'])
+        audio['format'] = stream['codec_name']
+        audio['default'] = "0"
+        if 'disposition' in stream:
+            audio['default'] = str(stream['disposition'].get('default', 0))
+        if 'tags' in stream:
+            tags = stream['tags']
+            if 'language' in tags:
+                audio['lang'] = tags['language']
+            else:
+                # derive the language
+                for name in tags.keys():
+                    if name[0:9] == 'DURATION-':
+                        lang = name[9:]
+                        audio['lang'] = lang
+                        break
+            if "NUMBER_OF_BYTES" in tags:
+                audio['mb'] = str(int(int(tags["NUMBER_OF_BYTES"]) / 1024000))
+
+        minfo['audio'].append(StreamInfoWrapper(audio))
+
+    @staticmethod
+    def _parse_json_subtitle(stream: Dict, minfo: Dict):
+        sub = {}
+        sub['stream'] = str(stream['index'])
+        sub['format'] = stream['codec_name']
+        sub['default'] = "0"
+        if 'disposition' in stream:
+            sub['default'] = str(stream['disposition'].get('default', 0))
+        if 'tags' in stream:
+            if 'language' in stream['tags']:
+                sub['lang'] = stream['tags']['language']
+            else:
+                # derive the language
+                for name in stream['tags'].itekeysms():
+                    if name[0:9] == 'DURATION-':
+                        lang = name[9:]
+                        sub['lang'] = lang
+                        break
+        minfo['subtitle'].append(StreamInfoWrapper(sub))
 
     @staticmethod
     def parse_ffmpeg_details_json(_path, info):
         minone = MediaInfo(None)
-        minfo = { 'audio': [], 'subtitle': []}
+        minfo = {'audio': [], 'subtitle': []}
         if 'streams' not in info:
             return minone
-        found_video = False     # used to detect first video stream (the real one)
+        found_video = False  # used to detect first video stream (the real one)
         for stream in info['streams']:
-            if stream['codec_type'] == 'video' and not found_video:
-                found_video = True
-                minfo['path'] = _path
-                minfo['vcodec'] = stream['codec_name']
-                minfo['stream'] = str(stream['index'])
-                minfo['res_width'] = stream['width']
-                minfo['res_height'] = stream['height']
-                minfo['filesize_mb'] = os.path.getsize(_path) / (1024 * 1024)
-                fr_parts = stream['r_frame_rate'].split('/')
-                fr = int(int(fr_parts[0]) / int(fr_parts[1]))
-                minfo['fps'] = str(fr)
-                minfo['colorspace'] = stream['pix_fmt']
-                if 'duration' in stream:
-                    minfo['runtime'] = int(float(stream['duration']))
-                else:
-                    if 'tags' in stream:
-                        for name, value in stream['tags'].items():
-                            if name[0:8] == 'DURATION':
-                                hh, mm, ss = value.split(':')
-                                duration = (int(float(hh)) * 3600) + (int(float(mm)) * 60) + int(float(ss))
-                                minfo['runtime'] = duration
-                                break
+            match stream['codec_type']:
+                case "video" if not found_video:
+                    found_video = True
+                    MediaInfo._parse_json_video(_path, stream, minfo)
 
-            elif stream['codec_type'] == 'audio':
-                audio = dict()
-                audio['stream'] = str(stream['index'])
-                audio['format'] = stream['codec_name']
-                audio['default'] = "0"
-                if 'disposition' in stream:
-                    audio['default'] = str(stream['disposition'].get('default', 0))
-                if 'tags' in stream:
-                    tags = stream['tags']
-                    if 'language' in tags:
-                        audio['lang'] = tags['language']
-                    else:
-                        # derive the language
-                        for name, value in tags.items():
-                            if name[0:9] == 'DURATION-':
-                                lang = name[9:]
-                                audio['lang'] = lang
-                                break
-                    if "NUMBER_OF_BYTES" in tags:
-                        audio['mb'] = str(int(int(tags["NUMBER_OF_BYTES"]) / 1024000))
+                case "audio":
+                    MediaInfo._parse_json_audio(stream, minfo)
 
-                minfo['audio'].append(audio)
-            elif stream['codec_type'] in ('subtitle', 'subrip'):
-                sub = dict()
-                sub['stream'] = str(stream['index'])
-                sub['format'] = stream['codec_name']
-                sub['default'] = "0"
-                if 'disposition' in stream:
-                    sub['default'] = str(stream['disposition'].get('default', 0))
-                if 'tags' in stream:
-                    if 'language' in stream['tags']:
-                        sub['lang'] = stream['tags']['language']
-                    else:
-                        # derive the language
-                        for name, value in stream['tags'].items():
-                            if name[0:9] == 'DURATION-':
-                                lang = name[9:]
-                                sub['lang'] = lang
-                                break
-                minfo['subtitle'].append(sub)
+                case "subtitle" | "subrip":
+                    MediaInfo._parse_json_subtitle(stream, minfo)
+
         return MediaInfo(minfo)
-
