@@ -1,0 +1,23 @@
+Input #0, matroska,webm, from '/video/Television/Show/Season 3/Show.S03E07.1080p.mkv':
+  Metadata:
+    ENCODER         : Lavf60.3.100
+  Duration: 00:53:17.86, start: 0.000000, bitrate: 6692 kb/s
+  Stream #0:0(eng): Video: hevc (Main), yuv420p(tv, bt709, progressive), 1920x960 [SAR 1:1 DAR 2:1], 23.98 fps, 23.98 tbr, 1k tbn (default)
+    Metadata:
+      ENCODER         : Lavc60.3.100 hevc_videotoolbox
+      DURATION        : 00:53:17.862000000
+  Stream #0:1(eng): Audio: eac3, 48000 Hz, 5.1(side), fltp, 768 kb/s (default)
+    Metadata:
+      DURATION        : 00:53:17.824000000
+  Stream #0:2(eng): Subtitle: subrip (default) (forced)
+    Metadata:
+      title           : English [Forced]
+      DURATION        : 00:09:15.722000000
+  Stream #0:3(eng): Subtitle: subrip
+    Metadata:
+      title           : English
+      DURATION        : 00:51:49.401000000
+  Stream #0:4(eng): Subtitle: subrip
+    Metadata:
+      title           : English [SDH]
+      DURATION        : 00:52:01.330000000

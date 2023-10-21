@@ -113,7 +113,7 @@ class FFmpeg:
         with subprocess.Popen(args, stdout=subprocess.PIPE) as proc:
             output = proc.stdout.read().decode(encoding='utf8')
             info = json.loads(output)
-            return MediaInfo.parse_ffmpeg_details_json(_path, info)
+            return MediaInfo.parse_ffprobe_details_json(_path, info)
 
     def monitor_ffmpeg(self, proc: subprocess.Popen):
         diff = datetime.timedelta(seconds=self.monitor_interval)
