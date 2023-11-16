@@ -13,8 +13,8 @@ from wandarr.utils import filter_threshold, run, get_local_os_type
 class StreamingManagedHost(ManagedHost):
     """Implementation of a streaming host worker thread"""
 
-    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
-        super().__init__(hostname, props, queue, cluster)
+    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue):
+        super().__init__(hostname, props, queue)
 
     #
     # initiate tests through here to avoid a new thread
@@ -31,7 +31,7 @@ class StreamingManagedHost(ManagedHost):
 
     def go(self):
 
-        ssh_cmd = [self._manager.ssh, self.props.user + '@' + self.props.ip]
+        ssh_cmd = [wandarr.SSH, self.props.user + '@' + self.props.ip]
 
         #
         # Keep pulling items from the queue until done. Other threads will be pulling from the same queue
@@ -60,7 +60,7 @@ class StreamingManagedHost(ManagedHost):
                 #
                 video_options = self.video_cli.split(" ")
 
-                stream_map = super().map_streams(job, self._manager.config)
+                stream_map = super().map_streams(job)
 
                 cmd = ['-y', *job.template.input_options_list(), '-i', self.converted_path(remote_in_path),
                        *video_options,
@@ -92,7 +92,7 @@ class StreamingManagedHost(ManagedHost):
                 code, output = run(scp)
                 if code != 0:
                     self.log('Unknown error copying source to remote - media skipped', style="magenta")
-                    if self._manager.VERBOSE:
+                    if wandarr.VERBOSE:
                         self.log(output)
                     continue
 
@@ -106,7 +106,7 @@ class StreamingManagedHost(ManagedHost):
                                       'completed': 0,
                                       'status': 'Running'})
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
+                code = self.ffmpeg.run_remote(wandarr.SSH, self.props.user, self.props.ip, cmd,
                                               super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 
@@ -143,7 +143,6 @@ class StreamingManagedHost(ManagedHost):
                         if wandarr.VERBOSE:
                             self.log(f'moving media to {in_path}')
                         shutil.move(retrieved_copy_name, in_path)
-                    #self.log(f'Finished {in_path}')
                 elif code is not None:
                     self.log(f'error during remote transcode of {in_path}', style="magenta")
                     self.log(f' Did not complete normally: {self.ffmpeg.last_command}')

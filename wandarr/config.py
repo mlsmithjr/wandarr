@@ -12,9 +12,6 @@ class Engine:
         self.name = name
         self.definition = definition
 
-    def quality(self, name: str) -> bool:
-        return name in self.definition.get("quality").get(name)
-
     def qualities(self):
         return self.definition.get("quality")
 
@@ -34,7 +31,7 @@ class ConfigFile:
                 yml = configuration
             else:
                 if not os.path.exists(configuration):
-                    print(f'Configuration file "{configuration}" not found')
+                    print(f'Configuration file {configuration} not found')
                     sys.exit(1)
                 with open(configuration, 'r', encoding="utf8") as f:
                     yml = yaml.load(f, Loader=yaml.Loader)
@@ -68,16 +65,10 @@ class ConfigFile:
                     self.engines[name] = Engine(name, engine_def)
 
     def rich(self) -> bool:
-        return self.settings.get("rich", False)
-
-    def has_engine(self, name) -> bool:
-        return name in self.engines
+        return self.settings.get("rich", True)
 
     def engine(self, name: str) -> Engine:
         return self.engines.get(name)
-
-    def has_template(self, template_name) -> bool:
-        return template_name in self.directives
 
     def get_template(self, name) -> Template:
         return self.templates.get(name, None)
@@ -90,10 +81,3 @@ class ConfigFile:
     def ssh_path(self):
         return self.settings.get('ssh', '/usr/bin/ssh')
 
-    @property
-    def default_queue_file(self):
-        return self.settings.get('default_queue_file', None)
-
-    @property
-    def automap(self) -> bool:
-        return self.settings.get('automap', True)

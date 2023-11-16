@@ -12,8 +12,8 @@ class LocalHost(ManagedHost):
     """Implementation of a worker thread when the local machine is in the same cluster.
     Pretty much the same as the LocalHost class but without multiple dedicated queues"""
 
-    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
-        super().__init__(hostname, props, queue, cluster)
+    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue):
+        super().__init__(hostname, props, queue)
 
     #
     # initiate tests through here to avoid a new thread
@@ -32,6 +32,7 @@ class LocalHost(ManagedHost):
         while not self.queue.empty():
             try:
                 job: EncodeJob = self.queue.get()
+
                 in_path = job.in_path
 
                 orig_file_size_mb = int(os.path.getsize(in_path) / (1024 * 1024))
@@ -46,7 +47,7 @@ class LocalHost(ManagedHost):
 
                 video_options = self.video_cli.split(" ")
 
-                stream_map = super().map_streams(job, self._manager.config)
+                stream_map = super().map_streams(job)
 
                 cli = ['-y', *job.template.input_options_list(), '-i', in_path,
                        *video_options,

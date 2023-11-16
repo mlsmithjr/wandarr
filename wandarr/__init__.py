@@ -8,6 +8,7 @@ __license__ = 'GPLv3'
 #
 from queue import Queue
 
+SSH: str = "/usr/bin/ssh"
 VERBOSE = False
 KEEP_SOURCE = False
 DRY_RUN = False

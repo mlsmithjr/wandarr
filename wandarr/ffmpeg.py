@@ -89,6 +89,8 @@ class FFmpeg:
         try:
             mi = self.fetch_details_ffprobe(_path)
             if mi:
+                if mi.runtime == 0:
+                    print(f"Notice: runtime metadata missing from {_path} - progress indicator will be inaccurate")
                 return mi
         except Exception:
             pass
@@ -100,6 +102,8 @@ class FFmpeg:
             output = proc.stderr.read().decode(encoding='utf8')
             mi = MediaInfo.parse_ffmpeg_details(_path, output)
             if mi.valid:
+                if mi.runtime == 0:
+                    print(f"Notice: runtime metadata missing from {_path} - progress indicator will be inaccurate")
                 return mi
 
         return MediaInfo(None)

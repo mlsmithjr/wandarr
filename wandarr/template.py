@@ -17,8 +17,8 @@ class Template:
         self.cli = self.template["cli"]
 
     def input_options_list(self) -> List[str]:
-        opt = self.cli.get("input-options")
-        return opt or []
+        opt = self.cli.get("input-options", [])
+        return opt
 
     def output_options_list(self) -> List[str]:
         opts = []
@@ -29,8 +29,11 @@ class Template:
 
         return opts
 
-    def get(self, key: str):
-        return self.template.get(key)
+    def audio_langs(self) -> list:
+        return self.template.get("audio-lang", []).split(",")
+
+    def subtitle_langs(self) -> list:
+        return self.template.get("subtitle-lang", []).split(",")
 
     def video_select(self):
         return self.template.get("video-quality")
@@ -45,9 +48,6 @@ class Template:
     def name(self) -> str:
         return self._name
 
-    def queue_name(self) -> str:
-        return self.template.get('queue')
-
     def threshold(self) -> int:
         return self.template.get('threshold', 0)
 
@@ -60,13 +60,9 @@ class Template:
         default_reassign = False
         includes = None
         if stream_type == "a":
-            includes = self.template.get("audio-lang")
+            includes = self.audio_langs()
         elif stream_type == "s":
-            includes = self.template.get("subtitle-lang")
-        if includes:
-            includes = includes.split(",")
-        else:
-            includes = []
+            includes = self.subtitle_langs()
 
         for s in streams:
             stream_lang = s.lang
@@ -99,13 +95,11 @@ class Template:
 
     def stream_map(self, video_stream: str, audio: List, subtitle: List) -> List[str]:
 
-        if len(self.template.get("audio-lang", "")) == 0 and len(self.template.get("subtitle-lang", "")) == 0:
+        if len(self.audio_langs()) == 0 and len(self.subtitle_langs()) == 0:
             # default to map everything
             return ['-map', '0']
 
-        seq_list = []
-        seq_list.append('-map')
-        seq_list.append(f'0:{video_stream}')
+        seq_list = ["-map", f'0:{video_stream}']
         audio_streams = self._map_streams("a", audio)
         subtitle_streams = self._map_streams("s", subtitle)
         if not audio_streams:

@@ -174,7 +174,7 @@ class MediaInfo:
             return None
         _dur_hrs, _dur_mins, _dur_secs = match1.group(1, 2, 3)
         _id, _codec, _colorspace, _res_width, _res_height, fps = match2.group(1, 2, 3, 4, 5, 6)
-        filesize = os.path.getsize(_path) / (1024 * 1024)
+        filesize = int(os.path.getsize(_path) / (1024 * 1024))
 
         minfo = {
             'path': _path,
@@ -208,7 +208,7 @@ class MediaInfo:
         minfo['stream'] = str(stream['index'])
         minfo['res_width'] = stream['width']
         minfo['res_height'] = stream['height']
-        minfo['filesize_mb'] = os.path.getsize(_path) / (1024 * 1024)
+        minfo['filesize_mb'] = int(os.path.getsize(_path) / (1024 * 1024))
         fr_parts = stream['r_frame_rate'].split('/')
         fr = int(int(fr_parts[0]) / int(fr_parts[1]))
         minfo['fps'] = fr
@@ -227,6 +227,9 @@ class MediaInfo:
     @staticmethod
     def _parse_json_audio(stream: Dict, minfo: Dict):
         audio = {"stream": str(stream["index"]), "format": stream["codec_name"], "default": "0"}
+        # need to check for duration b/c it may not appear in the video stream
+        if 'duration' in stream:
+            minfo['runtime'] = int(float(stream['duration']))
         if 'disposition' in stream:
             audio['default'] = str(stream['disposition'].get('default', 0))
         if 'tags' in stream:
@@ -248,6 +251,10 @@ class MediaInfo:
     @staticmethod
     def _parse_json_subtitle(stream: Dict, minfo: Dict):
         sub = {"stream": str(stream["index"]), "format": stream["codec_name"], "default": "0"}
+        # need to check for duration b/c it may not appear in the video stream
+        if 'duration' in stream:
+            minfo['runtime'] = int(float(stream['duration']))
+
         if 'disposition' in stream:
             sub['default'] = str(stream['disposition'].get('default', 0))
         if 'tags' in stream:
@@ -255,7 +262,7 @@ class MediaInfo:
                 sub['lang'] = stream['tags']['language']
             else:
                 # derive the language
-                for name in stream['tags'].itekeysms():
+                for name in stream['tags'].keys():
                     if name[0:9] == 'DURATION-':
                         lang = name[9:]
                         sub['lang'] = lang

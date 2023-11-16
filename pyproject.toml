@@ -42,3 +42,11 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["wandarr"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+    "wandarr",
+]

@@ -1,0 +1,103 @@
+
+config:
+  ffmpeg: '/opt/homebrew/bin/ffmpeg'
+  rich: yes
+
+cluster:
+
+  workstation:
+    os: linux
+    type: local
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    status: enabled
+
+  server:
+    os: linux
+    type: mounted
+    ip: 192.168.1.100
+    user: me
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    path-substitutions:
+      - '/Volumes/media /mnt/media/'
+      - '/mnt/downloads/ /mnt/server/downloads/'
+    engines:
+      - qsv
+    status: disabled
+
+  server2:
+    os: linux
+    type: mounted
+    ip: 192.168.1.101
+    user: me
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    path-substitutions:
+      - '/Volumes/media /mnt/media/'
+      - '/mnt/downloads/ /mnt/server/downloads/'
+    engines:
+      - qsv
+    status: enabled
+
+  server3:
+    os: linux
+    type: streaming
+    ip: 192.168.1.101
+    user: me
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    status: enabled
+
+  server4:
+    os: linux
+    type: agent
+    ip: 127.0.0.1
+    working_dir: /tmp
+    ffmpeg: '/usr/bin/ffmpeg'
+    engines:
+      - qsv
+    status: enabled
+
+engines:
+  vt:
+    quality:
+      medium: "-c:v hevc_videotoolbox -preset medium -qp 23 -b:v 6000K -f matroska -max_muxing_queue_size 1024"
+      high:  "-c:v hevc_videotoolbox -preset medium -qp 21 -b:v 8000K -f matroska -max_muxing_queue_size 1024"
+
+  qsv:
+    quality:
+      medium: "-c:v hevc_qsv -preset medium -qp 21 -b:v 7000K -f matroska -max_muxing_queue_size 1024"
+
+  cuda:
+    quality:
+      medium: "-c:v hevc_nvenc -cq:v 23 -rc vbr -rc-lookahead 20 -bufsize 3M -b:v 7M -profile:v main -maxrate:v 7M -preset medium -b_ref_mode 0 -f matroska -max_muxing_queue_size 1024"
+
+  cpu:
+    quality:
+      copy: "-c:v copy -f matroska"
+
+templates:
+  tv:
+    cli:
+      audio: "-c:a copy"
+      subtitles: "-c:s copy"
+    video-quality: medium
+    audio-lang: eng
+    subtitle-lang: eng
+    threshold: 15
+    threshold_check: 20
+    extension: '.mkv'
+
+  sub-scrub:
+    cli:
+      audio: "-c:a copy"
+      subtitles: "-c:s copy"
+    video-quality: copy
+    audio-lang: eng,jpn
+    subtitle-lang: eng
+    extension: ".mkv"

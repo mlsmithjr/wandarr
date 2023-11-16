@@ -6,7 +6,6 @@ from typing import Dict, List
 import os
 
 import wandarr
-from wandarr.config import ConfigFile
 from wandarr.ffmpeg import FFmpeg
 from wandarr.media import MediaInfo
 from wandarr.template import Template
@@ -84,20 +83,6 @@ class RemoteHostProperties:
             return get_local_os_type() == 'linux'
         return self.props.get('os', None) == 'linux'
 
-    def escaped_filename(self, filename):
-        """Find all special characters typically found in media names and escape to be shell-friendly"""
-        if self.is_windows():
-            return filename
-        if self.is_linux():
-            filename = filename.replace(r' ', r'\ ')
-            filename = filename.replace(r'(', r'\(')
-            filename = filename.replace(r')', r'\)')
-            filename = filename.replace(r"'", r"\'")
-            filename = filename.replace(r'"', r'\"')
-            filename = filename.replace(r'!', r'\!')
-            return "'" + filename + "'"
-        return filename
-
     def validate_settings(self):
         """Validate required settings"""
         msg = []
@@ -148,33 +133,23 @@ class ManagedHost(Thread):
         Base thread class for all remote host types.
     """
 
-    def __init__(self, hostname, props, queue, cluster):
+    def __init__(self, hostname, props, queue):
         """
         :param hostname:    name of host from cluster
         :param props:       dictionary of properties from cluster
         :param queue:       Work queue assigned to this thread, could be many-to-one in the future.
-        :param cluster:     Reference to parent Cluster object
         """
         super().__init__(name=hostname, group=None, daemon=True)
         self.hostname = hostname
         self.props = props
         self.queue = queue
         self._complete = []
-        self._manager = cluster
         self.ffmpeg = FFmpeg(props.ffmpeg_path)
         self.video_cli = None
         self.qname = None  # assigned queue
 
     def validate_settings(self):
         return self.props.validate_settings()
-
-    @property
-    def lock(self):
-        return self._manager.lock
-
-    @property
-    def configfile(self) -> ConfigFile:
-        return self._manager.config
 
     def complete(self, source, elapsed=0):
         self._complete.append((source, elapsed))
@@ -184,16 +159,12 @@ class ManagedHost(Thread):
         return self._complete
 
     def log(self, message: str, style: str = None):
-        self.lock.acquire()
-        try:
-            msg = f"{self.hostname:20}: {message}"
-            if wandarr.console:
-                wandarr.console.print(":warning: " + msg, style=style)
-            else:
-                print(message)
-            sys.stdout.flush()
-        finally:
-            self.lock.release()
+        msg = f"{self.hostname:20}: {message}"
+        if wandarr.console:
+            wandarr.console.print(":warning: " + msg, style=style)
+        else:
+            print(message)
+        sys.stdout.flush()
 
     def testrun(self):
         pass
@@ -205,7 +176,7 @@ class ManagedHost(Thread):
         return str(PosixPath(path))
 
     def ssh_cmd(self):
-        return [self._manager.ssh, self.props.user + '@' + self.props.ip]
+        return [wandarr.SSH, self.props.user + '@' + self.props.ip]
 
     def ping_test_ok(self):
         addr = self.props.ip
@@ -238,7 +209,7 @@ class ManagedHost(Thread):
 
     def run_process(self, *args):
         p = subprocess.run(*args, check=False)
-        if self._manager.VERBOSE:
+        if wandarr.VERBOSE:
             self.log(' '.join(*args))
             if p.returncode != 0:
                 self.log(p.stderr.decode("utf-8"))
@@ -247,8 +218,8 @@ class ManagedHost(Thread):
     def terminate(self):
         pass
 
-    def map_streams(self, job: EncodeJob, config: ConfigFile):
-        if job.media_info.is_multistream() and config.automap:
+    def map_streams(self, job: EncodeJob):
+        if job.media_info.is_multistream():
             stream_map = job.template.stream_map(job.media_info.stream, job.media_info.audio,
                                                  job.media_info.subtitle)
             return stream_map
@@ -283,14 +254,10 @@ class ManagedHost(Thread):
             #
             # display useful information
             #
-            self.lock.acquire()
-            try:
-                print('-' * 40)
-                print(f'Host     : {self.hostname}')
-                print('Filename : ' + os.path.basename(job.in_path))
-                print(f'Template : {job.template.name()}')
-                print('ffmpeg   : ' + ' '.join(cli) + '\n')
-                return True
-            finally:
-                self.lock.release()
+            print('-' * 40)
+            print(f'Host     : {self.hostname}')
+            print('Filename : ' + os.path.basename(job.in_path))
+            print(f'Template : {job.template.name()}')
+            print('ffmpeg   : ' + ' '.join(cli) + '\n')
+            return True
         return False

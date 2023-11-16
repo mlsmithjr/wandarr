@@ -1,5 +1,9 @@
 ## Changes
 
+#### 11/2/2023 v1.0.5
+* Added -l (local-only) mode. Skips detection and use of remove machines.
+* Internal refactoring to make the code more readible.
+
 #### 10/20/2023 v1.0.4
 * Code refactoring cleanup
 * Misc small bug fixes related to parsing media technical details

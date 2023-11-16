@@ -11,8 +11,12 @@ from .utils import filter_threshold
 class MountedManagedHost(ManagedHost):
     """Implementation of a mounted host worker thread"""
 
-    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
-        super().__init__(hostname, props, queue, cluster)
+    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue):
+        super().__init__(hostname, props, queue)
+
+        # last modified paths - used for testing
+        self.remote_in_path = None
+        self.remote_out_path = None
 
     #
     # initiate tests through here to avoid a new thread
@@ -39,29 +43,29 @@ class MountedManagedHost(ManagedHost):
                 # calculate paths
                 #
                 out_path = in_path[0:in_path.rfind('.')] + job.template.extension() + '.tmp'
-                remote_in_path = in_path
-                remote_out_path = out_path
+                self.remote_in_path = in_path
+                self.remote_out_path = out_path
                 if self.props.has_path_subst:
                     #
                     # fix the input path to match what the remote machine expects
                     #
-                    remote_in_path, remote_out_path = self.props.substitute_paths(in_path, out_path)
+                    self.remote_in_path, self.remote_out_path = self.props.substitute_paths(in_path, out_path)
                     if wandarr.VERBOSE:
-                        print(f"substituted {remote_in_path} for {in_path}")
+                        print(f"substituted {self.remote_in_path} for {in_path}")
                 #
                 # build command line
                 #
                 video_options = self.video_cli.split(" ")
 
-                remote_in_path = self.converted_path(remote_in_path)
-                remote_out_path = self.converted_path(remote_out_path)
+                self.remote_in_path = self.converted_path(self.remote_in_path)
+                self.remote_out_path = self.converted_path(self.remote_out_path)
 
-                stream_map = super().map_streams(job, self._manager.config)
+                stream_map = super().map_streams(job)
 
-                cmd = ['-y', *job.template.input_options_list(), '-i', f'"{remote_in_path}"',
+                cmd = ['-y', *job.template.input_options_list(), '-i', f'"{self.remote_in_path}"',
                        *video_options,
                        *job.template.output_options_list(), *stream_map,
-                       f'"{remote_out_path}"']
+                       f'"{self.remote_out_path}"']
 
                 basename = os.path.basename(job.in_path)
 
@@ -75,7 +79,7 @@ class MountedManagedHost(ManagedHost):
                 # Start remote
                 #
                 job_start = datetime.datetime.now()
-                code = self.ffmpeg.run_remote(self._manager.ssh, self.props.user, self.props.ip, cmd,
+                code = self.ffmpeg.run_remote(wandarr.SSH, self.props.user, self.props.ip, cmd,
                                               super().callback_wrapper(job))
                 job_stop = datetime.datetime.now()
 

@@ -6,12 +6,11 @@ import signal
 import sys
 from queue import Queue
 import queue
-from threading import Thread, Lock
+from threading import Thread
 from typing import Dict, List
 from rich.console import Console
 
 import wandarr
-from wandarr import VERBOSE
 from wandarr.agenthost import AgentManagedHost
 from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
 from wandarr.config import ConfigFile
@@ -24,21 +23,15 @@ from wandarr.streaminghost import StreamingManagedHost
 class Cluster(Thread):
     """Thread to create host threads and wait for their completion."""
 
-    terminal_lock: Lock = Lock()  # class-level
-
-    def __init__(self, config: ConfigFile, ssh: str):
+    def __init__(self, config: ConfigFile):
         """
         :param config:      The full configuration object
-        :param ssh:         Path to local ssh
         """
         super().__init__(daemon=True)
         self.queues: Dict[str, Queue] = {}
-        self.ssh = ssh
         self.hosts: List[ManagedHost] = []
         self.config = config
-        self.verbose = VERBOSE
         self.ffmpeg = FFmpeg(config.ffmpeg_path)
-        self.lock = Cluster.terminal_lock
         self.completed: List = []
 
         down_hosts = []
@@ -94,7 +87,7 @@ class Cluster(Thread):
                             print(f'Unknown cluster host type "{host_type}" - skipping')
 
     def _init_host_local(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
-        _h = LocalHost(host, host_props, self.queues[qname], self)
+        _h = LocalHost(host, host_props, self.queues[qname])
         if not _h.validate_settings():
             sys.exit(1)
         _h.video_cli = cli
@@ -102,7 +95,7 @@ class Cluster(Thread):
         self.hosts.append(_h)
 
     def _init_host_mounted(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
-        _h = MountedManagedHost(host, host_props, self.queues[qname], self)
+        _h = MountedManagedHost(host, host_props, self.queues[qname])
         if _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
@@ -113,7 +106,7 @@ class Cluster(Thread):
         return False
 
     def _init_host_streaming(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
-        _h = StreamingManagedHost(host, host_props, self.queues[qname], self)
+        _h = StreamingManagedHost(host, host_props, self.queues[qname])
         if _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
@@ -124,7 +117,7 @@ class Cluster(Thread):
         return False
 
     def _init_host_agent(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
-        _h = AgentManagedHost(host, host_props, self.queues[qname], self)
+        _h = AgentManagedHost(host, host_props, self.queues[qname])
         if _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
@@ -146,7 +139,7 @@ class Cluster(Thread):
             print(f"Template {template_name} not found")
             return None, None
 
-        path = os.path.abspath(file)  # convert to full path so that rule filtering can work
+        path = os.path.abspath(file)
         if wandarr.VERBOSE:
             print('matching ' + path)
 
@@ -211,8 +204,11 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
         print('Error: no cluster defined')
         return completed
 
+    # ugh, dirty I know.
+    wandarr.SSH = config.ssh_path
+
     try:
-        cluster = Cluster(config, config.ssh_path)
+        cluster = Cluster(config)
     except ValueError as ve:
         print("Error initializing: " + str(ve))
         sys.exit(1)

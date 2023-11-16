@@ -37,6 +37,8 @@ def init_argparse() -> argparse.ArgumentParser:
                         action="store_true", dest="show_info")
     parser.add_argument('-k', dest='keep_source',
                         action='store_true', help='keep source (do not replace)')
+    parser.add_argument("-l", dest="local_only",
+                        action="store_true", help="Transcode on local machine only")
     parser.add_argument('--dry-run', dest='dry_run',
                         action='store_true', help="Test run, show steps but don't change anything")
     parser.add_argument('-y', dest='configfile_name', default=DEFAULT_CONFIG,
@@ -75,13 +77,21 @@ def finalize_files(files: list, from_file: str):
         files.extend(tmpfiles)
     return files
 
-def setup_host_override(host_override: str, configfile: ConfigFile):
+
+def setup_host_override(host_override: str, local_only: bool, configfile: ConfigFile):
+    if local_only:
+        for config in configfile.hosts.values():
+            if config.get("type") != "local":
+                config["status"] = "disabled"
+        return
+
     if host_override is not None:
         # disable all other hosts in-memory only - to force encodes to the designated host
         host_list = host_override.split(",")
         for name, this_config in configfile.hosts.items():
             if name not in host_list:
                 this_config['status'] = 'disabled'
+
 
 def main():
     start()
@@ -93,12 +103,7 @@ def start():
     parser = init_argparse()
     args = parser.parse_args()
 
-    configfile_name = args.configfile_name
     files: List = args.files
-    template = args.template
-    agent_mode = args.agent_mode
-    from_file = args.from_file
-    host_override = args.host_override
     wandarr.VERBOSE = args.verbose
     wandarr.KEEP_SOURCE = args.keep_source
     wandarr.DRY_RUN = args.dry_run
@@ -107,25 +112,25 @@ def start():
         wandarr.DRY_RUN = True
         agent_mode = False
 
-    if agent_mode:
+    if args.agent_mode:
         agent = Agent()
         agent.run()
         sys.exit(0)
 
-    configfile = ConfigFile(configfile_name)
+    configfile = ConfigFile(args.configfile_name)
 
-    files = finalize_files(files, from_file)
-    setup_host_override(host_override, configfile)
+    files = finalize_files(files, args.from_file)
+    setup_host_override(args.host_override, args.local_only, configfile)
 
     if wandarr.SHOW_INFO:
         MediaInfo.show_info(configfile.rich, files, FFmpeg(configfile.ffmpeg_path))
         sys.exit(0)
 
-    if not template:
+    if not args.template:
         print("A template is required")
         sys.exit(1)
 
-    completed: List = manage_cluster(files, configfile, template)
+    completed: List = manage_cluster(files, configfile, args.template)
     if len(completed) > 0:
         dump_stats(completed)
     sys.exit(0)

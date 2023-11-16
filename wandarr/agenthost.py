@@ -12,8 +12,8 @@ from wandarr.base import ManagedHost, RemoteHostProperties, EncodeJob
 class AgentManagedHost(ManagedHost):
     """Implementation of an agent host worker thread"""
 
-    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue, cluster):
-        super().__init__(hostname, props, queue, cluster)
+    def __init__(self, hostname, props: RemoteHostProperties, queue: Queue):
+        super().__init__(hostname, props, queue)
 
     #
     # override the standard ssh-based host_ok for agent verification
@@ -26,7 +26,7 @@ class AgentManagedHost(ManagedHost):
         s.settimeout(2)
         try:
             s.connect((self.props.ip, Agent.PORT))
-            if self._manager.VERBOSE:
+            if wandarr.VERBOSE:
                 self.log(f"checking if remote agent at {self.props.ip} is up")
             s.send(bytes("PING".encode()))
             s.settimeout(5)
@@ -54,6 +54,37 @@ class AgentManagedHost(ManagedHost):
         else:
             self.log(f"{self.props.name} not available")
 
+    def handshake(self, s: socket.socket, hello: str) -> bool:
+        if wandarr.VERBOSE:
+            self.log("handshaking with remote agent", style="info")
+        s.send(bytes(hello.encode()))
+        rsp = s.recv(1024).decode()
+        if rsp != hello:
+            self.log("Received unexpected response from agent: " + rsp, style="magenta'")
+            return False
+        return True
+
+    def sendfile(self, s: socket.socket, in_path: str):
+        with open(in_path, "rb") as f:
+            while True:
+                buf = f.read(4096)
+                s.send(buf)
+                if len(buf) < 4096:
+                    break
+
+    def recvfile(self, s: socket.socket, filesize: int, tmp_file: str):
+        with open(tmp_file, "wb") as out:
+            while filesize > 0:
+                blk = s.recv(1_000_000)
+                out.write(blk)
+                filesize -= len(blk)
+
+    def connect(self, s: socket.socket):
+        s.connect((self.props.ip, Agent.PORT))
+
+    def ack(self, s:socket.socket):
+        s.send(bytes("ACK!".encode()))
+
     def go(self):
 
         while not self.queue.empty():
@@ -66,7 +97,7 @@ class AgentManagedHost(ManagedHost):
                 # build command line
                 #
                 video_options = self.video_cli.split(" ")
-                stream_map = super().map_streams(job, self._manager.config)
+                stream_map = super().map_streams(job)
 
                 cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
                        *video_options,
@@ -87,32 +118,25 @@ class AgentManagedHost(ManagedHost):
                                           'completed': 0,
                                           'status': 'Connect'})
 
-                if self._manager.VERBOSE:
+                if wandarr.VERBOSE:
                     self.log(f"connect to '{self.props.ip}'", style="info")
 
-                s.connect((self.props.ip, Agent.PORT))
+                self.connect(s)
+
                 input_size = os.path.getsize(in_path)
                 tmpdir = self.props.working_dir
                 cmd_str = "$".join(cmd)
                 hello = f"HELLO|{input_size}|{tmpdir}|{basename}|{cmd_str}"
-                if self._manager.VERBOSE:
-                    self.log("handshaking with remote agent", style="info")
-                s.send(bytes(hello.encode()))
-                rsp = s.recv(1024).decode()
-                if rsp != hello:
-                    self.log("Received unexpected response from agent: " + rsp, style="magenta'")
+
+                if not self.handshake(s, hello):
                     continue
+
                 # send the file
                 wandarr.status_queue.put({'host': self.hostname,
                                           'file': basename,
                                           'status': 'Copying...'})
-                #                self.log(f"sending {in_path} to agent")
-                with open(in_path, "rb") as f:
-                    while True:
-                        buf = f.read(4096)
-                        s.send(buf)
-                        if len(buf) < 4096:
-                            break
+
+                self.sendfile(s, in_path)
 
                 wandarr.status_queue.put({'host': self.hostname,
                                           'file': basename,
@@ -126,7 +150,7 @@ class AgentManagedHost(ManagedHost):
                     if finished:
                         parts = stats.split(r"|")
                         if parts[0] == "DONE":
-                            s.send(bytes("ACK!".encode()))
+                            self.ack(s)
                             tag, exitcode, sent_filesize = parts
                             filesize = int(sent_filesize)
                             tmp_file = in_path + ".tmp"
@@ -135,14 +159,10 @@ class AgentManagedHost(ManagedHost):
                                                       'completed': 100,
                                                       'status': 'Retrieving'})
 
-                            if self._manager.VERBOSE:
+                            if wandarr.VERBOSE:
                                 self.log(f"receiving ({filesize} bytes)")
 
-                            with open(tmp_file, "wb") as out:
-                                while filesize > 0:
-                                    blk = s.recv(1_000_000)
-                                    out.write(blk)
-                                    filesize -= len(blk)
+                            self.recvfile(s, filesize, tmp_file)
 
                             if not wandarr.KEEP_SOURCE:
                                 os.unlink(in_path)
