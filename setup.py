@@ -25,7 +25,7 @@ setuptools.setup(
 #    extras_require={'with_plexapi': ['plexapi>=3.1.0']},
     url='https://github.com/mlsmithjr/wandarr',
     data_files=[('share/doc/wandarr', ['README.md', 'Cluster.md', 'config-samples/wandarr.yml' ])],
-    packages=['src/wandarr'],
+    packages=['wandarr'],
     install_requires=['pyyaml >= 6.0', 'rich >= 13.5.3'],
     entry_points={"console_scripts": ["wandarr=wandarr:main"]},
     classifiers=[

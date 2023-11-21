@@ -93,6 +93,10 @@ def setup_host_override(host_override: str, local_only: bool, configfile: Config
                 this_config['status'] = 'disabled'
 
 
+def load_config(path: str = DEFAULT_CONFIG):
+    return ConfigFile(path)
+
+
 def main():
     start()
 
@@ -110,14 +114,14 @@ def start():
     wandarr.SHOW_INFO = args.show_info
     if wandarr.SHOW_INFO:
         wandarr.DRY_RUN = True
-        agent_mode = False
+        args.agent_mode = False
 
     if args.agent_mode:
         agent = Agent()
         agent.run()
         sys.exit(0)
 
-    configfile = ConfigFile(args.configfile_name)
+    configfile = load_config(args.configfile_name)
 
     files = finalize_files(files, args.from_file)
     setup_host_override(args.host_override, args.local_only, configfile)

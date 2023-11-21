@@ -107,7 +107,7 @@ class MountedManagedHost(ManagedHost):
                         os.rename(out_path, out_path[0:-4])
                         self.complete(in_path, (job_stop - job_start).seconds)
 
-                        new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+                        new_filesize_mb = int(os.path.getsize(out_path[0:-4]) / (1024 * 1024))
                         wandarr.status_queue.put({'host': self.hostname,
                                                   'file': basename,
                                                   'completed': 100,
