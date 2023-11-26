@@ -93,6 +93,7 @@ class Runner(Thread):
                             vetoed = True
                             break
 
+                    # wait for process to end
                     while proc.poll() is None:
                         time.sleep(1)
 

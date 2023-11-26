@@ -113,39 +113,42 @@ class Cluster(Thread):
 
     def _init_host_mounted(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = MountedManagedHost(host, host_props, self.queues[qname])
-        if check_host and _h.host_ok():
-            if not _h.validate_settings():
-                sys.exit(1)
-            _h.video_cli = cli
-            _h.qname = qname
-            _h.engine_name = engine_name
-            self.hosts.append(_h)
-            return True
-        return False
+        if check_host and not _h.host_ok():
+            return False
+
+        if not _h.validate_settings():
+            sys.exit(1)
+        _h.video_cli = cli
+        _h.qname = qname
+        _h.engine_name = engine_name
+        self.hosts.append(_h)
+        return True
 
     def _init_host_streaming(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = StreamingManagedHost(host, host_props, self.queues[qname])
-        if check_host and _h.host_ok():
-            if not _h.validate_settings():
-                sys.exit(1)
-            _h.video_cli = cli
-            _h.qname = qname
-            _h.engine_name = engine_name
-            self.hosts.append(_h)
-            return True
-        return False
+        if check_host and not _h.host_ok():
+            return False
+
+        if not _h.validate_settings():
+            sys.exit(1)
+        _h.video_cli = cli
+        _h.qname = qname
+        _h.engine_name = engine_name
+        self.hosts.append(_h)
+        return True
 
     def _init_host_agent(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = AgentManagedHost(host, host_props, self.queues[qname])
-        if check_host and _h.host_ok():
-            if not _h.validate_settings():
-                sys.exit(1)
-            _h.video_cli = cli
-            _h.qname = qname
-            _h.engine_name = engine_name
-            self.hosts.append(_h)
-            return True
-        return False
+        if check_host and not _h.host_ok():
+            return False
+
+        if not _h.validate_settings():
+            sys.exit(1)
+        _h.video_cli = cli
+        _h.qname = qname
+        _h.engine_name = engine_name
+        self.hosts.append(_h)
+        return True
 
     def enqueue(self, file, template_name: str):
         """Add a media file to this cluster queue.

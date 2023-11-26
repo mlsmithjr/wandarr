@@ -178,7 +178,7 @@ class FFmpeg:
                 c = sock.recv(2048).decode()
                 logfile.write(c)
                 if c.startswith("DONE|") or c.startswith("ERR|"):
-                    print("Transcode complete")
+#                    print("Transcode complete")
                     # found end of processing marker
                     try:
                         if c.startswith("ERR|"):

@@ -72,6 +72,9 @@ class StreamingManagedHost(ManagedHost):
 
                 super().dump_job_info(job, cli)
 
+                opts_only = [*job.template.input_options_list(), *video_options,
+                             *job.template.output_options_list(), *stream_map]
+                print(f"{basename} -> ffmpeg {' '.join(opts_only)}")
                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                       'file': basename,
                                       'speed': '0x',

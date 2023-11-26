@@ -1,8 +1,10 @@
 ## Changes
 
-#### 11/2/2023 v1.0.5
+#### 11/26/2023 v1.0.5
 * Added -l (local-only) mode. Skips detection and use of remove machines.
 * Internal refactoring to make the code more readible.
+* Bug fixes to agent-based host management
+* Reduce redundant pings to hosts for awake-checks
 
 #### 10/20/2023 v1.0.4
 * Code refactoring cleanup

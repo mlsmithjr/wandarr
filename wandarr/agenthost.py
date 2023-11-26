@@ -115,6 +115,10 @@ class AgentManagedHost(ManagedHost):
                 #
                 s = socket.socket()
 
+                opts_only = [*job.template.input_options_list(), *video_options,
+                             *job.template.output_options_list(), *stream_map]
+                print(f"{basename} -> ffmpeg {' '.join(opts_only)}")
+
                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'completed': 0,
@@ -184,6 +188,8 @@ class AgentManagedHost(ManagedHost):
 
                 except KeyboardInterrupt:
                     s.send(bytes("STOP".encode()))
+
+                s.close()
 
             except Exception:
                 print(traceback.format_exc())
