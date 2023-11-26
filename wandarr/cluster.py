@@ -35,6 +35,7 @@ class Cluster(Thread):
         self.completed: List = []
 
         down_hosts = []
+        up_hosts = []
         for host, props in config.hosts.items():
             if host in down_hosts:
                 continue
@@ -67,62 +68,81 @@ class Cluster(Thread):
 
                     match host_type:
                         case "local":
-                            self._init_host_local(host, host_props, qname, cli)
+                            if wandarr.VERBOSE:
+                                print(f"{host=} {qname=} {host_engine_name=} {cli=}")
+                            self._init_host_local(host, host_props, qname, host_engine_name, cli)
 
                         case "mounted":
-                            if not self._init_host_mounted(host, host_props, qname, cli):
+                            if wandarr.VERBOSE:
+                                print(f"{host=} {qname=} {host_engine_name=} {cli=}")
+                            if not self._init_host_mounted(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
                                 down_hosts.append(host)
                                 continue
+                            else:
+                                up_hosts.append(host)
 
                         case "streaming":
-                            if not self._init_host_streaming(host, host_props, qname, cli):
+                            if wandarr.VERBOSE:
+                                print(f"{host=} {qname=} {host_engine_name=} {cli=}")
+                            if not self._init_host_streaming(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
                                 down_hosts.append(host)
                                 continue
+                            else:
+                                up_hosts.append(host)
 
                         case "agent":
-                            if not self._init_host_agent(host, host_props, qname, cli):
-                                down_hosts.append(host)
-                                continue
+                            if wandarr.VERBOSE:
+                                print(f"{host=} {qname=} {host_engine_name=} {cli=}")
+                            if not self._init_host_agent(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
+                               down_hosts.append(host)
+                               continue
+                            else:
+                                up_hosts.append(host)
+
                         case _:
                             print(f'Unknown cluster host type "{host_type}" - skipping')
 
-    def _init_host_local(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+    def _init_host_local(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str):
         _h = LocalHost(host, host_props, self.queues[qname])
         if not _h.validate_settings():
             sys.exit(1)
         _h.video_cli = cli
         _h.qname = qname
+        _h.engine_name = engine_name
         self.hosts.append(_h)
 
-    def _init_host_mounted(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+    def _init_host_mounted(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = MountedManagedHost(host, host_props, self.queues[qname])
-        if _h.host_ok():
+        if check_host and _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
             _h.video_cli = cli
             _h.qname = qname
+            _h.engine_name = engine_name
             self.hosts.append(_h)
             return True
         return False
 
-    def _init_host_streaming(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+    def _init_host_streaming(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = StreamingManagedHost(host, host_props, self.queues[qname])
-        if _h.host_ok():
+        if check_host and _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
             _h.video_cli = cli
             _h.qname = qname
+            _h.engine_name = engine_name
             self.hosts.append(_h)
             return True
         return False
 
-    def _init_host_agent(self, host: str, host_props: RemoteHostProperties, qname: str, cli: str):
+    def _init_host_agent(self, host: str, host_props: RemoteHostProperties, qname: str, engine_name: str, cli: str, check_host: bool):
         _h = AgentManagedHost(host, host_props, self.queues[qname])
-        if _h.host_ok():
+        if check_host and _h.host_ok():
             if not _h.validate_settings():
                 sys.exit(1)
             _h.video_cli = cli
             _h.qname = qname
+            _h.engine_name = engine_name
             self.hosts.append(_h)
             return True
         return False
@@ -197,7 +217,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
     """
     completed = []
 
-    if config.rich():
+    if config.rich:
         wandarr.console = Console()
 
     if not config.hosts:
@@ -234,7 +254,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
 
     if not testing:
 
-        if config.rich() and not wandarr.VERBOSE:
+        if config.rich and not wandarr.VERBOSE:
             from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 
             progress = Progress(
@@ -289,7 +309,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                     report['completed'] = done
                     status = report.get('status')
 
-                    print(f'{host:20}|{basename}: speed: {speed or "?"}x, comp: {comp or "?"}%, done: {done or 0:3}%, status: {status or ""}')
+                    print(f'{host:20}|{basename}: speed: {speed or "?"}, comp: {comp or "?"}, done: {done or 0:3}%, status: {status or ""}')
 
 #                    print(f'{host:20}|{basename}: speed: {speed}x, comp: {comp}%, done: {done:3}%, status: {status}')
                     sys.stdout.flush()
@@ -298,7 +318,5 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
                     busy = False
                     if cluster.is_alive():
                         busy = True
-        #
-        # wait for each cluster thread to complete
-        #
+
     return completed

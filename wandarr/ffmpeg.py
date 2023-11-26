@@ -6,6 +6,7 @@ import sys
 import threading
 from pathlib import PurePath
 from random import randint
+import socket
 from tempfile import gettempdir
 from typing import Dict, Any, Optional
 import json
@@ -162,36 +163,48 @@ class FFmpeg:
         # yield the final info results before terminating loop
         yield info
 
-    def monitor_agent(self, sock):
+    def monitor_agent(self, sock: socket.socket):
+        suffix = randint(100, 999)
+        self.log_path: PurePath = PurePath(gettempdir(), 'wandarr-' +
+                                           threading.current_thread().name + '-' +
+                                           str(suffix) + '.log')
+
         diff = datetime.timedelta(seconds=self.monitor_interval)
         event = datetime.datetime.now() + diff
-        while True:
-            c = sock.recv(1024).decode()
-            if c.startswith("DONE|") or c.startswith("ERR|"):
-                print("Transcode complete, receiving results..")
-                # found end of processing marker
-                try:
-                    os.remove(str(self.log_path))
-                    self.log_path = None
-                except Exception:
-                    pass
+#        print(f"See error log at {self.log_path}")
+        with open(str(self.log_path), 'w', encoding="utf8") as logfile:
+            while True:
+                sock.settimeout(10)
+                c = sock.recv(2048).decode()
+                logfile.write(c)
+                if c.startswith("DONE|") or c.startswith("ERR|"):
+                    print("Transcode complete")
+                    # found end of processing marker
+                    try:
+                        if c.startswith("ERR|"):
+                            print(f"See error log at {self.log_path}")
+                        else:
+                            os.remove(str(self.log_path))
+                        self.log_path = None
+                    except Exception as ex:
+                        print(str(ex))
 
-                yield c
+                    yield c
 
-            sock.send(bytes("ACK!".encode()))
-            line = c
+                sock.send(bytes("ACK!".encode()))
+                line = c
 
-            match = status_re.match(line)
-            if match is not None and len(match.groups()) >= 5:
-                if datetime.datetime.now() > event:
-                    event = datetime.datetime.now() + diff
-                    info: Dict[str, Any] = match.groupdict()
+                match = status_re.match(line)
+                if match is not None and len(match.groups()) >= 5:
+                    if datetime.datetime.now() > event:
+                        event = datetime.datetime.now() + diff
+                        info: Dict[str, Any] = match.groupdict()
 
-                    info['size'] = int(info['size'].strip()) * 1024
-                    hh, mm, ss = info['time'].split(':')
-                    ss = ss.split('.')[0]
-                    info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
-                    yield info
+                        info['size'] = int(info['size'].strip()) * 1024
+                        hh, mm, ss = info['time'].split(':')
+                        ss = ss.split('.')[0]
+                        info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
+                        yield info
 
     def run(self, params, event_callback) -> Optional[int]:
         return self.execute_and_monitor(params, event_callback, self.monitor_ffmpeg)

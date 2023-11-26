@@ -72,7 +72,7 @@ class StreamingManagedHost(ManagedHost):
 
                 super().dump_job_info(job, cli)
 
-                wandarr.status_queue.put({'host': 'local',
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                       'file': basename,
                                       'speed': '0x',
                                       'comp': '0%',
@@ -101,7 +101,7 @@ class StreamingManagedHost(ManagedHost):
                 #
                 # Start remote
                 #
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                       'file': basename,
                                       'completed': 0,
                                       'status': 'Running'})

@@ -32,10 +32,12 @@ class AgentManagedHost(ManagedHost):
             s.settimeout(5)
             rsp = s.recv(4).decode()
             return rsp == "PONG"
-        except Exception:
+        except Exception as ex:
             if wandarr.console:
                 wandarr.console.print(f":warning: Agent not running on {self.props.ip}")
+                wandarr.console.print(str(ex))
             else:
+                print(str(ex))
                 print(f"Agent not running on {self.props.ip}")
         return False
 
@@ -113,7 +115,7 @@ class AgentManagedHost(ManagedHost):
                 #
                 s = socket.socket()
 
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'completed': 0,
                                           'status': 'Connect'})
@@ -132,13 +134,13 @@ class AgentManagedHost(ManagedHost):
                     continue
 
                 # send the file
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'status': 'Copying...'})
 
                 self.sendfile(s, in_path)
 
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'status': 'Running'})
                 job_start = datetime.datetime.now()
@@ -154,7 +156,7 @@ class AgentManagedHost(ManagedHost):
                             tag, exitcode, sent_filesize = parts
                             filesize = int(sent_filesize)
                             tmp_file = in_path + ".tmp"
-                            wandarr.status_queue.put({'host': self.hostname,
+                            wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                       'file': basename,
                                                       'completed': 100,
                                                       'status': 'Retrieving'})
@@ -169,7 +171,7 @@ class AgentManagedHost(ManagedHost):
                                 os.rename(tmp_file, in_path)
                                 new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
 
-                                wandarr.status_queue.put({'host': self.hostname,
+                                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                           'file': basename,
                                                           'completed': 100,
                                                           'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})

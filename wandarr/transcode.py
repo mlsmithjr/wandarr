@@ -38,7 +38,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument('-k', dest='keep_source',
                         action='store_true', help='keep source (do not replace)')
     parser.add_argument("-l", dest="local_only",
-                        action="store_true", help="Transcode on local machine only")
+                        action="store_true", help="Transcode on local machine only if multiples defined")
     parser.add_argument('--dry-run', dest='dry_run',
                         action='store_true', help="Test run, show steps but don't change anything")
     parser.add_argument('-y', dest='configfile_name', default=DEFAULT_CONFIG,
@@ -52,6 +52,7 @@ def init_argparse() -> argparse.ArgumentParser:
                         action='store', help="Only run transcode on given host(s), comma-separated")
     parser.add_argument('--from-file', dest='from_file',
                         action='store', help='Filename that contains list of full paths of files to transcode')
+    parser.add_argument("--console", dest="console", action="store_true", required=False, help=argparse.SUPPRESS)
     return parser
 
 
@@ -118,10 +119,13 @@ def start():
 
     if args.agent_mode:
         agent = Agent()
-        agent.run()
+        agent.serve()
         sys.exit(0)
 
     configfile = load_config(args.configfile_name)
+
+    if args.console:
+        configfile.rich = False
 
     files = finalize_files(files, args.from_file)
     setup_host_override(args.host_override, args.local_only, configfile)

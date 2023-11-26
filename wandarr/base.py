@@ -147,6 +147,7 @@ class ManagedHost(Thread):
         self.ffmpeg = FFmpeg(props.ffmpeg_path)
         self.video_cli = None
         self.qname = None  # assigned queue
+        self.engine_name = None
 
     def validate_settings(self):
         return self.props.validate_settings()
@@ -231,14 +232,14 @@ class ManagedHost(Thread):
                 return False
 
             pct_done, pct_comp = calculate_progress(job.media_info, stats)
-            wandarr.status_queue.put({'host': self.hostname,
+            wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                       'file': os.path.basename(job.in_path),
                                       'speed': f"{stats['speed']}x",
                                       'comp': f"{pct_comp}%",
                                       'completed': pct_done})
 
             if job.should_abort(pct_done, pct_comp):
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': os.path.basename(job.in_path),
                                           'speed': f"{stats['speed']}x",
                                           'comp': f"{pct_comp}%",

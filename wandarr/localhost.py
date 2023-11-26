@@ -63,7 +63,7 @@ class LocalHost(ManagedHost):
                              *job.template.output_options_list(), *stream_map]
 
                 print(f"{basename} -> ffmpeg {' '.join(opts_only)}")
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'completed': 0})
                 #
@@ -83,7 +83,7 @@ class LocalHost(ManagedHost):
                     continue
 
                 if code == 0:
-                    wandarr.status_queue.put({'host': self.hostname, 'file': basename, 'completed': 100})
+                    wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}", 'file': basename, 'completed': 100})
                     if not filter_threshold(job.template, in_path, out_path):
                         self.complete(in_path, (job_stop - job_start).seconds)
                         os.remove(out_path)
@@ -99,13 +99,13 @@ class LocalHost(ManagedHost):
                         self.complete(in_path, (job_stop - job_start).seconds)
 
                         new_filesize_mb = int(os.path.getsize(out_path[0:-4]) / (1024 * 1024))
-                        wandarr.status_queue.put({'host': self.hostname,
+                        wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                   'file': basename,
                                                   'completed': 100,
                                                   'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
 
                 elif code is not None:
-                    self.log(f' Did not complete normally: {self.ffmpeg.last_command}')
+                    self.log(f'Did not complete normally: {self.ffmpeg.last_command}')
                     self.log(f'Output can be found in {self.ffmpeg.log_path}')
                     try:
                         os.remove(out_path)

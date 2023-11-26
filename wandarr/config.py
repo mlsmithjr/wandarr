@@ -64,8 +64,13 @@ class ConfigFile:
                 for name, engine_def in yml['engines'].items():
                     self.engines[name] = Engine(name, engine_def)
 
+    @property
     def rich(self) -> bool:
         return self.settings.get("rich", True)
+
+    @rich.setter
+    def rich(self, v):
+        self.settings["rich"] = v
 
     def engine(self, name: str) -> Engine:
         return self.engines.get(name)

@@ -72,7 +72,7 @@ class MountedManagedHost(ManagedHost):
                 if super().dump_job_info(job, cmd):
                     continue
 
-                wandarr.status_queue.put({'host': self.hostname,
+                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
                                           'completed': 0})
                 #
@@ -108,7 +108,7 @@ class MountedManagedHost(ManagedHost):
                         self.complete(in_path, (job_stop - job_start).seconds)
 
                         new_filesize_mb = int(os.path.getsize(out_path[0:-4]) / (1024 * 1024))
-                        wandarr.status_queue.put({'host': self.hostname,
+                        wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                   'file': basename,
                                                   'completed': 100,
                                                   'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
