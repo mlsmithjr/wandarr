@@ -50,6 +50,8 @@ def init_argparse() -> argparse.ArgumentParser:
                         action='store', help="Template name to use for transcode jobs")
     parser.add_argument('--hosts', dest='host_override',
                         action='store', help="Only run transcode on given host(s), comma-separated")
+    parser.add_argument('-vq', dest='video_quality_override',
+                        action='store', help="Video quality (override for default in template)", default=None, required=False)
     parser.add_argument('--from-file', dest='from_file',
                         action='store', help='Filename that contains list of full paths of files to transcode')
     parser.add_argument("--console", dest="console", action="store_true", required=False, help=argparse.SUPPRESS)
@@ -138,7 +140,7 @@ def start():
         print("A template is required")
         sys.exit(1)
 
-    completed: List = manage_cluster(files, configfile, args.template)
+    completed: List = manage_cluster(files, configfile, args.template, args.video_quality_override)
     if len(completed) > 0:
         dump_stats(completed)
     sys.exit(0)

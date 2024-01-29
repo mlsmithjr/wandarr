@@ -30,10 +30,10 @@ class Template:
         return opts
 
     def audio_langs(self) -> list:
-        return self.template.get("audio-lang", []).split(",")
+        return self.template.get("audio-lang", "").split(",")
 
     def subtitle_langs(self) -> list:
-        return self.template.get("subtitle-lang", []).split(",")
+        return self.template.get("subtitle-lang", "").split(",")
 
     def video_select(self):
         return self.template.get("video-quality")

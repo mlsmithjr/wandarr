@@ -99,7 +99,7 @@ class Runner(Thread):
 
                     if not vetoed:
                         if proc.returncode != 0:
-                            print(f"[{self.thread_id}] > ERR")
+                            print(f"[{self.thread_id}] Error returned from ffmpeg. Try running manually to troubleshoot")
                             c.send(bytes(f"ERR|{proc.returncode}".encode()))
                             print(f"[{self.thread_id}] Cleaning up")
                         else:

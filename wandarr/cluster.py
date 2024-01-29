@@ -150,7 +150,7 @@ class Cluster(Thread):
         self.hosts.append(_h)
         return True
 
-    def enqueue(self, file, template_name: str):
+    def enqueue(self, file, template_name: str, vq_override: str = None):
         """Add a media file to this cluster queue.
            This is different from in local mode in that we only care about handling skips here.
            The profile will be selected once a host is assigned to the work
@@ -176,8 +176,7 @@ class Cluster(Thread):
                 print(str(media_info))
 
             template = self.config.templates[template_name]
-
-            video_quality = template.video_select()
+            video_quality = vq_override or template.video_select()
             if video_quality not in self.queues:
                 print((f"Cannot match quality '{video_quality}' to any related host engines. "
                       "Make sure there is at least one host with an engine that supports this quality."))
@@ -213,7 +212,7 @@ class Cluster(Thread):
             host.terminate()
 
 
-def manage_cluster(files, config: ConfigFile, template_name: str, testing=False) -> List:
+def manage_cluster(files, config: ConfigFile, template_name: str, vq_override: str, testing=False) -> List:
     """Main entry point for setup and execution of all jobs
 
         There is one thread for the cluster that manages multiple hosts, each having their own thread.
@@ -237,7 +236,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, testing=False)
         sys.exit(1)
 
     for item in files:
-        cluster.enqueue(item, template_name)
+        cluster.enqueue(item, template_name, vq_override)
 
     #
     # Start cluster, which will start hosts too
