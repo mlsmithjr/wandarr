@@ -38,7 +38,8 @@ Now just change your host definition to use _cuda-1_ and _cuda-2_:
       - cuda-2
 ```
 It does not matter how many cards or machines with multiple cards you have as long as each card has a unique name
-and is associated with the right host.
+and is associated with the right host.  In fact, you can use the same technique to run parallel tasks on the same card,
+if it has enough memory and cores to support that.  Just define multiple slots for the same card and assign them all to the host.
 
 ---
 ### Can I only have low, medium, and high qualities? ###
