@@ -62,10 +62,10 @@ class MountedManagedHost(ManagedHost):
 
                 stream_map = super().map_streams(job)
 
-                cmd = ['-y', *job.template.input_options_list(), '-i', f'"{self.remote_in_path}"',
+                cmd = ['-y', *job.template.input_options_list(), '-i', self.remote_in_path,
                        *video_options,
                        *job.template.output_options_list(), *stream_map,
-                       f'"{self.remote_out_path}"']
+                       self.remote_out_path]
 
                 basename = os.path.basename(job.in_path)
 

@@ -35,7 +35,7 @@ def files_from_file(queue_path) -> list:
 
 
 def get_local_os_type():
-    return {'Windows': 'win10', 'Linux': 'linux', 'Darwin': 'macos'}.get(platform.system(), 'unknown')
+    return {'Windows': 'windows', 'Linux': 'linux', 'Darwin': 'macos'}.get(platform.system(), 'unknown')
 
 
 def calculate_progress(info: MediaInfo, stats: Dict) -> (int, int):

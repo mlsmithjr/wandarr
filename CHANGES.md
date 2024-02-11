@@ -1,5 +1,10 @@
 ## Changes
 
+#### 01/29/2024 v1.0.6
+* Minor parsing bug fix for multiple audio and subtitle tracks.  Videos previously encoded are not affected.
+* Added -vq (video quality) option to override default quality in the template, reducing the number of
+* templates you have to define if the difference is only the quality.
+
 #### 11/26/2023 v1.0.5
 * Added -l (local-only) mode. Skips detection and use of remove machines.
 * Internal refactoring to make the code more readible.

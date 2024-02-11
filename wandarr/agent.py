@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 from threading import Thread
+from typing import List
 
 
 class Runner(Thread):
@@ -15,6 +16,12 @@ class Runner(Thread):
     def run(self):
         c = self.c
         try:
+            has_sharing = False
+            keep_source = False
+            shared_in_path = None
+            shared_out_path = None
+
+
             print(f'[{self.thread_id}]: got connection from addr', self.addr)
             hello = c.recv(2048).decode()
             print(f"[{self.thread_id}]", hello)
@@ -23,39 +30,44 @@ class Runner(Thread):
                 c.close()
                 return
 
-            if hello.startswith("HELLO|"):
-
+            cli_parts = []
+            if hello.startswith("HELLO|") | hello.startswith("HELLOS|"):
                 parts = hello.split("|")
-                if len(parts) < 5:
-                    print(f"[{self.thread_id}] Not enough values in HELLO packet: " + hello)
-                    c.close()
-                    return
+                if parts[0] == "HELLO":
+                    # expect to receive the file
+                    if len(parts) < 5:
+                        print(f"[{self.thread_id}] Not enough values in HELLO packet: " + hello)
+                        c.close()
+                        return
 
-                filesize = int(parts[1])
-                tempdir = parts[2]
-                filename = parts[3]
-                cli = parts[4]
+                    filesize = int(parts[1])
+                    tempdir = parts[2]
+                    filename = parts[3]
+                    cli = parts[4]
+                    tmp_filename = os.path.join(tempdir, filename + ".tmp")
 
-                print(f"[{self.thread_id}] echoing back hello")
-                c.send(bytes(hello.encode()))
+                    print(f"[{self.thread_id}] echoing back hello")
+                    c.send(bytes(hello.encode()))
 
-                print(f"[{self.thread_id}] receiving {filesize} bytes to {filename}...")
-                output_filename = os.path.join(tempdir, filename)
-                tmp_filename = os.path.join(tempdir, filename + ".tmp")
+                    output_filename = self.receive_file(filesize, tempdir, filename, c)
 
-                with open(output_filename, "wb") as f:
-                    while filesize > 0:
-                        chunk = c.recv(min(4096, filesize))
-                        if len(chunk) == 0:
-                            break
-                        filesize -= len(chunk)
-                        f.write(chunk)
+                    cli = cli.replace(r"{FILENAME}", output_filename)
+                    cli_parts = cli.split(r"$")
+                    cli_parts.append(tmp_filename)
 
-                cli = cli.replace(r"{FILENAME}", output_filename)
-                cli_parts = cli.split(r"$")
+                elif parts[0] == "HELLOS":
+                    has_sharing = True
+                    # just use the passed-in cli since the host has access to the file via mapping
+                    shared_in_path = parts[1]
+                    shared_out_path = parts[2]
+                    cli = parts[3]
+                    keep_source = parts[4] == '1'
+                    cli_parts = cli.split(r"$")
+
+                #
+                # start ffmpeg and pipe output back to wandarr controller for monitoring
+                #
                 print(f"[{self.thread_id}] receive complete - executing " + " ".join(cli_parts))
-                cli_parts.append(tmp_filename)
-
                 vetoed = False
                 with subprocess.Popen(cli_parts,
                                       stdout=subprocess.PIPE,
@@ -104,31 +116,53 @@ class Runner(Thread):
                             print(f"[{self.thread_id}] Cleaning up")
                         else:
                             print(f"[{self.thread_id}] > DONE")
+                            # send the results back to the client
                             filesize = os.path.getsize(tmp_filename)
                             c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
-                            # wait for response, then send file
                             response = c.recv(4).decode()
-                            if response == "ACK!":
-                                # send the file back
-                                print(f"[{self.thread_id}] sending transcoded file")
-                                with open(tmp_filename, "rb") as input_file:
-                                    blk = input_file.read(1_000_000)
-                                    while len(blk) > 0:
-                                        c.send(blk)
-                                        blk = input_file.read(1_000_000)
-                                print(f"[{self.thread_id}] done")
+
+                            if not has_sharing:
+                                if response == "ACK!":
+                                    # send the file back
+                                    print(f"[{self.thread_id}] sending transcoded file")
+                                    with open(tmp_filename, "rb") as input_file:
+                                        blk = input_file.read(100_000)
+                                        while len(blk) > 0:
+                                            c.send(blk)
+                                            blk = input_file.read(100_000)
+                                    print(f"[{self.thread_id}] done")
+                                else:
+                                    print(f"[{self.thread_id}] expected ACK, got {response}")
                             else:
-                                print(f"[{self.thread_id}] expected ACK, got {response}")
+                                # file is on a share, so just rename in place
+                                if not keep_source:
+                                    os.remove(shared_in_path)
+                                    os.rename(shared_out_path, shared_in_path)
                     else:
                         print(f"[{self.thread_id}] veto")
 
-                    os.remove(tmp_filename)
-                    os.remove(output_filename)
+                    if not has_sharing:
+                        os.remove(tmp_filename)
+                        os.remove(output_filename)
 
         except Exception as ex:
             print(str(ex))
 
         c.close()
+
+    def receive_file(self, filesize: int, tempdir: str, filename: str, c) -> str:
+
+        print(f"[{self.thread_id}] receiving {filesize} bytes to {filename}...")
+        output_filename = os.path.join(tempdir, filename)
+
+        with open(output_filename, "wb") as f:
+            while filesize > 0:
+                chunk = c.recv(min(4096, filesize))
+                if len(chunk) == 0:
+                    break
+                filesize -= len(chunk)
+                f.write(chunk)
+        return output_filename
 
 
 class Agent:
