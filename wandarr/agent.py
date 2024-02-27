@@ -46,9 +46,6 @@ class Runner(Thread):
                     cli = parts[4]
                     tmp_filename = os.path.join(tempdir, filename + ".tmp")
 
-                    print(f"[{self.thread_id}] echoing back hello")
-                    c.send(bytes(hello.encode()))
-
                     output_filename = self.receive_file(filesize, tempdir, filename, c)
 
                     cli = cli.replace(r"{FILENAME}", output_filename)
@@ -63,6 +60,10 @@ class Runner(Thread):
                     cli = parts[3]
                     keep_source = parts[4] == '1'
                     cli_parts = cli.split(r"$")
+
+                print(f"[{self.thread_id}] echoing back hello")
+                c.send(bytes(hello.encode()))
+
 
                 #
                 # start ffmpeg and pipe output back to wandarr controller for monitoring

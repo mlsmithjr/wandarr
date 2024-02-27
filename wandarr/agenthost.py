@@ -62,7 +62,7 @@ class AgentManagedHost(ManagedHost):
         s.send(bytes(hello.encode()))
         rsp = s.recv(1024).decode()
         if rsp != hello:
-            self.log("Received unexpected response from agent: " + rsp, style="magenta'")
+            self.log("Received unexpected response from agent: " + rsp, style="magenta")
             return False
         return True
 
@@ -156,12 +156,13 @@ class AgentManagedHost(ManagedHost):
                 if not self.handshake(s, hello):
                     continue
 
-                # send the file
-                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
-                                          'file': basename,
-                                          'status': 'Copying...'})
+                if not has_sharing:
+                    # send the file
+                    wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
+                                              'file': basename,
+                                              'status': 'Copying...'})
 
-                self.sendfile(s, in_path)
+                    self.sendfile(s, in_path)
 
                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
