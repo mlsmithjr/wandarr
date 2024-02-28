@@ -148,10 +148,10 @@ class AgentManagedHost(ManagedHost):
                 input_size = os.path.getsize(in_path)
                 cmd_str = "$".join(cmd)
                 if has_sharing:
-                    hello = f"HELLOS|{self.remote_in_path}|{self.remote_out_path}|{cmd_str}|{'1' if wandarr.KEEP_SOURCE else '0'}"
+                    hello = f"HELLOS|{wandarr.__version__}|{self.remote_in_path}|{self.remote_out_path}|{cmd_str}|{'1' if wandarr.KEEP_SOURCE else '0'}"
                 else:
                     tmpdir = self.props.working_dir
-                    hello = f"HELLO|{input_size}|{tmpdir}|{basename}|{cmd_str}"
+                    hello = f"HELLO|{wandarr.__version__}|{input_size}|{tmpdir}|{basename}|{cmd_str}"
 
                 if not self.handshake(s, hello):
                     continue

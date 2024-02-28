@@ -1,9 +1,12 @@
 import socket
 import os
 import subprocess
+import sys
 import time
 from threading import Thread
 from typing import List
+
+import wandarr
 
 
 class Runner(Thread):
@@ -32,18 +35,21 @@ class Runner(Thread):
 
             cli_parts = []
             if hello.startswith("HELLO|") | hello.startswith("HELLOS|"):
+                upstream_version = None
+
                 parts = hello.split("|")
                 if parts[0] == "HELLO":
                     # expect to receive the file
-                    if len(parts) < 5:
+                    if len(parts) < 6:
                         print(f"[{self.thread_id}] Not enough values in HELLO packet: " + hello)
                         c.close()
                         return
 
-                    filesize = int(parts[1])
-                    tempdir = parts[2]
-                    filename = parts[3]
-                    cli = parts[4]
+                    upstream_version = parts[1]
+                    filesize = int(parts[2])
+                    tempdir = parts[3]
+                    filename = parts[4]
+                    cli = parts[5]
                     tmp_filename = os.path.join(tempdir, filename + ".tmp")
 
                     output_filename = self.receive_file(filesize, tempdir, filename, c)
@@ -55,15 +61,22 @@ class Runner(Thread):
                 elif parts[0] == "HELLOS":
                     has_sharing = True
                     # just use the passed-in cli since the host has access to the file via mapping
-                    shared_in_path = parts[1]
-                    shared_out_path = parts[2]
-                    cli = parts[3]
-                    keep_source = parts[4] == '1'
+                    upstream_version = parts[1]
+                    shared_in_path = parts[2]
+                    shared_out_path = parts[3]
+                    cli = parts[4]
+                    keep_source = parts[5] == '1'
                     cli_parts = cli.split(r"$")
 
                 print(f"[{self.thread_id}] echoing back hello")
                 c.send(bytes(hello.encode()))
 
+                if not upstream_version:
+                    print("** Your client version of wandarr needs to be updated.")
+                    sys.exit(1)
+
+                if upstream_version != wandarr.__version__:
+                    print(f"** WARNING: Your client wandarr is version {upstream_version} and this host is on {wandarr.__version__}. There may be incompatibilities.")
 
                 #
                 # start ffmpeg and pipe output back to wandarr controller for monitoring
