@@ -24,6 +24,8 @@ class Runner(Thread):
             shared_in_path = None
             shared_out_path = None
 
+            output_filename = None
+            tmp_filename = None
 
             print(f'[{self.thread_id}]: got connection from addr', self.addr)
             hello = c.recv(2048).decode()
@@ -37,6 +39,7 @@ class Runner(Thread):
             if hello.startswith("HELLO|") | hello.startswith("HELLOS|"):
                 upstream_version = None
 
+                error = ""
                 parts = hello.split("|")
                 if parts[0] == "HELLO":
                     # expect to receive the file
@@ -68,6 +71,19 @@ class Runner(Thread):
                     keep_source = parts[5] == '1'
                     cli_parts = cli.split(r"$")
 
+                    # do some verifications first
+                    if not os.access(shared_in_path, mode = os.R_OK):
+                        error = f"{shared_in_path} not found or cannot be read"
+                    try:
+                        with open(shared_out_path, "wb") as f:
+                            pass
+                    except IOError:
+                        error = f"Cannot write to {shared_out_path}"
+
+                if error:
+                    c.send(bytes(f"NAK|{error}".encode()))
+                    return
+
                 print(f"[{self.thread_id}] echoing back hello")
                 c.send(bytes(hello.encode()))
 
@@ -88,16 +104,25 @@ class Runner(Thread):
                                       stderr=subprocess.STDOUT,
                                       universal_newlines=True,
                                       shell=False) as proc:
+
+                    if proc.poll() is not None:
+                        # terminated too quick, grab the output
+                        buf = proc.stdout.readlines()
+                        c.send(bytes(f"ERR|{buf}".encode()))
+                        print(buf)
+                        return
+
                     while proc.poll() is None:
                         line = proc.stdout.readline()
+
+                        c.send(bytes(line.encode()))
+                        response = c.recv(20)
+
                         if "video:" in line:
                             print("video: trigger detected")
                             # transcode complete
                             break
 
-                        c.send(bytes(line.encode()))
-
-                        response = c.recv(20)
                         confirmation = response.decode()
                         if confirmation == "PING":
                             # ping received out of context, ignore
@@ -120,8 +145,9 @@ class Runner(Thread):
                             break
 
                     # wait for process to end
-                    while proc.poll() is None:
-                        time.sleep(1)
+                    proc.wait()
+
+                    print(f"[{self.thread_id}] ffmpeg exit with code {proc.returncode}")
 
                     if not vetoed:
                         if proc.returncode != 0:
@@ -130,12 +156,12 @@ class Runner(Thread):
                             print(f"[{self.thread_id}] Cleaning up")
                         else:
                             print(f"[{self.thread_id}] > DONE")
-                            # send the results back to the client
-                            filesize = os.path.getsize(tmp_filename)
-                            c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
-                            response = c.recv(4).decode()
 
                             if not has_sharing:
+                                # send the results back to the client
+                                filesize = os.path.getsize(tmp_filename)
+                                c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
+                                response = c.recv(4).decode()
                                 if response == "ACK!":
                                     # send the file back
                                     print(f"[{self.thread_id}] sending transcoded file")
@@ -148,6 +174,10 @@ class Runner(Thread):
                                 else:
                                     print(f"[{self.thread_id}] expected ACK, got {response}")
                             else:
+                                # send the results back to the client
+                                filesize = os.path.getsize(shared_out_path)
+                                c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
+                                response = c.recv(4).decode()
                                 # file is on a share, so just rename in place
                                 if not keep_source:
                                     os.remove(shared_in_path)
@@ -156,8 +186,10 @@ class Runner(Thread):
                         print(f"[{self.thread_id}] veto")
 
                     if not has_sharing:
-                        os.remove(tmp_filename)
-                        os.remove(output_filename)
+                        if tmp_filename:
+                            os.remove(tmp_filename)
+                        if output_filename:
+                            os.remove(output_filename)
 
         except Exception as ex:
             print(str(ex))

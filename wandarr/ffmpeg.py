@@ -175,14 +175,16 @@ class FFmpeg:
         with open(str(self.log_path), 'w', encoding="utf8") as logfile:
             while True:
                 sock.settimeout(10)
-                c = sock.recv(2048).decode()
+                c = sock.recv(4096).decode()
                 logfile.write(c)
+                logfile.flush()
                 if c.startswith("DONE|") or c.startswith("ERR|"):
 #                    print("Transcode complete")
                     # found end of processing marker
                     try:
                         if c.startswith("ERR|"):
                             print(f"See error log at {self.log_path}")
+                            break
                         else:
                             os.remove(str(self.log_path))
                         self.log_path = None

@@ -61,6 +61,9 @@ class AgentManagedHost(ManagedHost):
             self.log("handshaking with remote agent", style="info")
         s.send(bytes(hello.encode()))
         rsp = s.recv(1024).decode()
+        if rsp.startswith("NAK"):
+            self.log(rsp[4:])
+            return False
         if rsp != hello:
             self.log("Received unexpected response from agent: " + rsp, style="magenta")
             return False
@@ -173,7 +176,7 @@ class AgentManagedHost(ManagedHost):
                 job_stop = datetime.datetime.now()
 
                 try:
-                    if finished:
+                    if finished and stats:
                         parts = stats.split(r"|")
                         if parts[0] == "DONE":
                             self.ack(s)
@@ -206,7 +209,8 @@ class AgentManagedHost(ManagedHost):
                                                               'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
                             else:
                                 # agent already put the new file in place on the share
-                                new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+                                new_filesize = parts[2]
+                                new_filesize_mb = int(int(new_filesize) / (1024 * 1024))
                                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                           'file': basename,
                                                           'completed': 100,
