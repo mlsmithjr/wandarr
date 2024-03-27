@@ -1,6 +1,6 @@
 ## Changes
 
-#### 01/29/2024 v1.0.7
+#### 02/27/2024 v1.0.7
 * Added version check to let you know if there is a new release of wandarr.
 * Added agent ability access local shares instead of copying files to and from the host.
 * Updated agent protocol.
