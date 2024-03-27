@@ -14,7 +14,7 @@ from wandarr.cluster import manage_cluster
 from wandarr.config import ConfigFile
 from wandarr.ffmpeg import FFmpeg
 from wandarr.media import MediaInfo
-from wandarr.utils import files_from_file, dump_stats
+from wandarr.utils import files_from_file, dump_stats, VersionFetcher
 
 DEFAULT_CONFIG = os.path.expanduser('~/.wandarr.yml')
 
@@ -140,9 +140,17 @@ def start():
         print("A template is required")
         sys.exit(1)
 
+    vfetch = VersionFetcher()
+    vfetch.start()
+
     completed: List = manage_cluster(files, configfile, args.template, args.video_quality_override)
     if len(completed) > 0:
         dump_stats(completed)
+
+    vfetch.join(timeout=2)
+    if vfetch.version and vfetch.version != __version__:
+        print(f"\nVersion {vfetch.version} of wandarr is available.  See https://pypi.org/project/wandarr/\n")
+
     sys.exit(0)
 
 

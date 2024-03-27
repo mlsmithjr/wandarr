@@ -1,8 +1,12 @@
 import socket
 import os
 import subprocess
+import sys
 import time
 from threading import Thread
+from typing import List
+
+import wandarr
 
 
 class Runner(Thread):
@@ -15,6 +19,14 @@ class Runner(Thread):
     def run(self):
         c = self.c
         try:
+            has_sharing = False
+            keep_source = False
+            shared_in_path = None
+            shared_out_path = None
+
+            output_filename = None
+            tmp_filename = None
+
             print(f'[{self.thread_id}]: got connection from addr', self.addr)
             hello = c.recv(2048).decode()
             print(f"[{self.thread_id}]", hello)
@@ -23,55 +35,94 @@ class Runner(Thread):
                 c.close()
                 return
 
-            if hello.startswith("HELLO|"):
+            cli_parts = []
+            if hello.startswith("HELLO|") | hello.startswith("HELLOS|"):
+                upstream_version = None
 
+                error = ""
                 parts = hello.split("|")
-                if len(parts) < 5:
-                    print(f"[{self.thread_id}] Not enough values in HELLO packet: " + hello)
-                    c.close()
-                    return
+                if parts[0] == "HELLO":
+                    # expect to receive the file
+                    if len(parts) < 6:
+                        print(f"[{self.thread_id}] Not enough values in HELLO packet: " + hello)
+                        c.close()
+                        return
 
-                filesize = int(parts[1])
-                tempdir = parts[2]
-                filename = parts[3]
-                cli = parts[4]
+                    upstream_version = parts[1]
+                    filesize = int(parts[2])
+                    tempdir = parts[3]
+                    filename = parts[4]
+                    cli = parts[5]
+                    tmp_filename = os.path.join(tempdir, filename + ".tmp")
+
+                    output_filename = self.receive_file(filesize, tempdir, filename, c)
+
+                    cli = cli.replace(r"{FILENAME}", output_filename)
+                    cli_parts = cli.split(r"$")
+                    cli_parts.append(tmp_filename)
+
+                elif parts[0] == "HELLOS":
+                    has_sharing = True
+                    # just use the passed-in cli since the host has access to the file via mapping
+                    upstream_version = parts[1]
+                    shared_in_path = parts[2]
+                    shared_out_path = parts[3]
+                    cli = parts[4]
+                    keep_source = parts[5] == '1'
+                    cli_parts = cli.split(r"$")
+
+                    # do some verifications first
+                    if not os.access(shared_in_path, mode = os.R_OK):
+                        error = f"{shared_in_path} not found or cannot be read"
+                    try:
+                        with open(shared_out_path, "wb") as f:
+                            pass
+                    except IOError:
+                        error = f"Cannot write to {shared_out_path}"
+
+                if error:
+                    c.send(bytes(f"NAK|{error}".encode()))
+                    return
 
                 print(f"[{self.thread_id}] echoing back hello")
                 c.send(bytes(hello.encode()))
 
-                print(f"[{self.thread_id}] receiving {filesize} bytes to {filename}...")
-                output_filename = os.path.join(tempdir, filename)
-                tmp_filename = os.path.join(tempdir, filename + ".tmp")
+                if not upstream_version:
+                    print("** Your client version of wandarr needs to be updated.")
+                    sys.exit(1)
 
-                with open(output_filename, "wb") as f:
-                    while filesize > 0:
-                        chunk = c.recv(min(4096, filesize))
-                        if len(chunk) == 0:
-                            break
-                        filesize -= len(chunk)
-                        f.write(chunk)
+                if upstream_version != wandarr.__version__:
+                    print(f"** WARNING: Your client wandarr is version {upstream_version} and this host is on {wandarr.__version__}. There may be incompatibilities.")
 
-                cli = cli.replace(r"{FILENAME}", output_filename)
-                cli_parts = cli.split(r"$")
+                #
+                # start ffmpeg and pipe output back to wandarr controller for monitoring
+                #
                 print(f"[{self.thread_id}] receive complete - executing " + " ".join(cli_parts))
-                cli_parts.append(tmp_filename)
-
                 vetoed = False
                 with subprocess.Popen(cli_parts,
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT,
                                       universal_newlines=True,
                                       shell=False) as proc:
+
+                    if proc.poll() is not None:
+                        # terminated too quick, grab the output
+                        buf = proc.stdout.readlines()
+                        c.send(bytes(f"ERR|{buf}".encode()))
+                        print(buf)
+                        return
+
                     while proc.poll() is None:
                         line = proc.stdout.readline()
+
+                        c.send(bytes(line.encode()))
+                        response = c.recv(20)
+
                         if "video:" in line:
                             print("video: trigger detected")
                             # transcode complete
                             break
 
-                        c.send(bytes(line.encode()))
-
-                        response = c.recv(20)
                         confirmation = response.decode()
                         if confirmation == "PING":
                             # ping received out of context, ignore
@@ -94,8 +145,9 @@ class Runner(Thread):
                             break
 
                     # wait for process to end
-                    while proc.poll() is None:
-                        time.sleep(1)
+                    proc.wait()
+
+                    print(f"[{self.thread_id}] ffmpeg exit with code {proc.returncode}")
 
                     if not vetoed:
                         if proc.returncode != 0:
@@ -104,31 +156,59 @@ class Runner(Thread):
                             print(f"[{self.thread_id}] Cleaning up")
                         else:
                             print(f"[{self.thread_id}] > DONE")
-                            filesize = os.path.getsize(tmp_filename)
-                            c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
-                            # wait for response, then send file
-                            response = c.recv(4).decode()
-                            if response == "ACK!":
-                                # send the file back
-                                print(f"[{self.thread_id}] sending transcoded file")
-                                with open(tmp_filename, "rb") as input_file:
-                                    blk = input_file.read(1_000_000)
-                                    while len(blk) > 0:
-                                        c.send(blk)
-                                        blk = input_file.read(1_000_000)
-                                print(f"[{self.thread_id}] done")
+
+                            if not has_sharing:
+                                # send the results back to the client
+                                filesize = os.path.getsize(tmp_filename)
+                                c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
+                                response = c.recv(4).decode()
+                                if response == "ACK!":
+                                    # send the file back
+                                    print(f"[{self.thread_id}] sending transcoded file")
+                                    with open(tmp_filename, "rb") as input_file:
+                                        blk = input_file.read(100_000)
+                                        while len(blk) > 0:
+                                            c.send(blk)
+                                            blk = input_file.read(100_000)
+                                    print(f"[{self.thread_id}] done")
+                                else:
+                                    print(f"[{self.thread_id}] expected ACK, got {response}")
                             else:
-                                print(f"[{self.thread_id}] expected ACK, got {response}")
+                                # send the results back to the client
+                                filesize = os.path.getsize(shared_out_path)
+                                c.send(bytes(f"DONE|{proc.returncode}|{filesize}".encode()))
+                                response = c.recv(4).decode()
+                                # file is on a share, so just rename in place
+                                if not keep_source:
+                                    os.remove(shared_in_path)
+                                    os.rename(shared_out_path, shared_in_path)
                     else:
                         print(f"[{self.thread_id}] veto")
 
-                    os.remove(tmp_filename)
-                    os.remove(output_filename)
+                    if not has_sharing:
+                        if tmp_filename:
+                            os.remove(tmp_filename)
+                        if output_filename:
+                            os.remove(output_filename)
 
         except Exception as ex:
             print(str(ex))
 
         c.close()
+
+    def receive_file(self, filesize: int, tempdir: str, filename: str, c) -> str:
+
+        print(f"[{self.thread_id}] receiving {filesize} bytes to {filename}...")
+        output_filename = os.path.join(tempdir, filename)
+
+        with open(output_filename, "wb") as f:
+            while filesize > 0:
+                chunk = c.recv(min(4096, filesize))
+                if len(chunk) == 0:
+                    break
+                filesize -= len(chunk)
+                f.write(chunk)
+        return output_filename
 
 
 class Agent:

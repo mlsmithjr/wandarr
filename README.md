@@ -5,7 +5,7 @@ machines in parallel, using ffmpeg. It is the successor to pytranscoder and is b
 #### Features:
 * Sequential or concurrent transcoding. 
 * Concurrent mode allows you to make maximum use of your 
-nVidia CUDA-enabled graphics card or Intel accelerated video (QSV)
+nVidia CUDA-enabled graphics card, Intel accelerated video (QSV), or Apple VideoToolkit.
 * Preserves all streams but allows for filtering by audio and subtitle language.
 * Configurable transcoding templates
 * Transcode from a list of files (queue) or all on the command line
@@ -18,6 +18,7 @@ nVidia CUDA-enabled graphics card or Intel accelerated video (QSV)
 * latest *ffmpeg* (3.4.3-2 or higher, lower versions may still work)
 * nVidia graphics card with latest nVidia CUDA drivers (_optional_)
 * Intel CPU with QSV enabled (_optional_)
+* MacOS VideoToolkit (_optional_)
 * Python 3 (3.10 or higher)
 
 ### Installation
@@ -154,7 +155,7 @@ Each section under *engines* defines a hardware capability.  Here you see 3 - vt
 Each section under *quality* defines as many named configurations as you need.  In the sample here you see low, medium, high, and copy.
 These are ffmpeg options that control how your video is transformed.  These are *only* the video options as they are the ones that can vary between hardware.
 While these are usable samples, you may alter then to suit your needs or add many more.
-Also keep in mind you do not need to use hardware acceleration, but it does makes things go faster.
+Also keep in mind you do not need to use hardware acceleration, but it does make things go faster.
 
 Sample:
 ```yaml

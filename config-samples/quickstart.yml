@@ -9,7 +9,7 @@ config:
   ssh: /usr/bin/ssh   # defaults to /usr/bin/sh, will be different on windows
 
 ##############################################################################
-# Cluster machine definitions. Must have at least 1, usually the local machine
+# Cluster machine definitions. Must have at least 1, the local machine
 ##############################################################################
 
 cluster:

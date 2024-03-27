@@ -75,8 +75,8 @@ class RemoteHostProperties:
 
     def is_windows(self):
         if self.props['type'] == 'local':
-            return get_local_os_type() == 'win10'
-        return self.props.get('os', None) == 'win10'
+            return get_local_os_type() == 'windows'
+        return self.props.get('os', None) in ['windows', 'win10']
 
     def is_linux(self):
         if self.props['type'] == 'local':
@@ -99,7 +99,7 @@ class RemoteHostProperties:
                 msg.append('Missing "os"')
             else:
                 _os = self.props['os']
-                if _os not in ['macos', 'linux', 'win10']:
+                if _os not in ['macos', 'linux', 'windows', 'win10']:
                     msg.append(f'Unsupported "os" type {_os}')
         if self.props['type'] == 'streaming':
             if 'working_dir' not in self.props:
@@ -171,8 +171,10 @@ class ManagedHost(Thread):
         pass
 
     def converted_path(self, path):
-        if self.props.is_windows():
+        if " " in path:
             path = '"' + path + '"'
+        if self.props.is_windows():
+            path = path.replace(' ', '\ ')
             return str(PureWindowsPath(path))
         return str(PosixPath(path))
 

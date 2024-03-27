@@ -61,8 +61,11 @@ class AgentManagedHost(ManagedHost):
             self.log("handshaking with remote agent", style="info")
         s.send(bytes(hello.encode()))
         rsp = s.recv(1024).decode()
+        if rsp.startswith("NAK"):
+            self.log(rsp[4:])
+            return False
         if rsp != hello:
-            self.log("Received unexpected response from agent: " + rsp, style="magenta'")
+            self.log("Received unexpected response from agent: " + rsp, style="magenta")
             return False
         return True
 
@@ -101,9 +104,25 @@ class AgentManagedHost(ManagedHost):
                 video_options = self.video_cli.split(" ")
                 stream_map = super().map_streams(job)
 
-                cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
-                       *video_options,
-                       *job.template.output_options_list(), *stream_map]
+                has_sharing = False
+                #
+                # if path substitutions were given then the host where the agent resides has access to shared file,
+                # so map the paths same as mountedhost.
+                #
+                if self.props.has_path_subst:
+                    out_path = in_path[0:in_path.rfind('.')] + job.template.extension() + '.tmp'
+                    self.remote_in_path, self.remote_out_path = self.props.substitute_paths(in_path, out_path)
+                    if wandarr.VERBOSE:
+                        print(f"substituted {self.remote_in_path} for {in_path}")
+                    cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', self.remote_in_path,
+                           *video_options,
+                           *job.template.output_options_list(), *stream_map, self.remote_out_path]
+                    has_sharing = True
+                else:
+                    # no path mapping, so we're sending the file
+                    cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
+                           *video_options,
+                           *job.template.output_options_list(), *stream_map]
 
                 basename = os.path.basename(job.in_path)
 
@@ -130,19 +149,23 @@ class AgentManagedHost(ManagedHost):
                 self.connect(s)
 
                 input_size = os.path.getsize(in_path)
-                tmpdir = self.props.working_dir
                 cmd_str = "$".join(cmd)
-                hello = f"HELLO|{input_size}|{tmpdir}|{basename}|{cmd_str}"
+                if has_sharing:
+                    hello = f"HELLOS|{wandarr.__version__}|{self.remote_in_path}|{self.remote_out_path}|{cmd_str}|{'1' if wandarr.KEEP_SOURCE else '0'}"
+                else:
+                    tmpdir = self.props.working_dir
+                    hello = f"HELLO|{wandarr.__version__}|{input_size}|{tmpdir}|{basename}|{cmd_str}"
 
                 if not self.handshake(s, hello):
                     continue
 
-                # send the file
-                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
-                                          'file': basename,
-                                          'status': 'Copying...'})
+                if not has_sharing:
+                    # send the file
+                    wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
+                                              'file': basename,
+                                              'status': 'Copying...'})
 
-                self.sendfile(s, in_path)
+                    self.sendfile(s, in_path)
 
                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': basename,
@@ -153,28 +176,41 @@ class AgentManagedHost(ManagedHost):
                 job_stop = datetime.datetime.now()
 
                 try:
-                    if finished:
+                    if finished and stats:
                         parts = stats.split(r"|")
                         if parts[0] == "DONE":
                             self.ack(s)
-                            tag, exitcode, sent_filesize = parts
-                            filesize = int(sent_filesize)
-                            tmp_file = in_path + ".tmp"
-                            wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
-                                                      'file': basename,
-                                                      'completed': 100,
-                                                      'status': 'Retrieving'})
 
-                            if wandarr.VERBOSE:
-                                self.log(f"receiving ({filesize} bytes)")
+                            if not has_sharing:
+                                #
+                                # agent will send us the transcoded file
+                                #
+                                tag, exitcode, sent_filesize = parts
+                                filesize = int(sent_filesize)
+                                tmp_file = in_path + ".tmp"
+                                wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
+                                                          'file': basename,
+                                                          'completed': 100,
+                                                          'status': 'Retrieving'})
 
-                            self.recvfile(s, filesize, tmp_file)
+                                if wandarr.VERBOSE:
+                                    self.log(f"receiving ({filesize} bytes)")
 
-                            if not wandarr.KEEP_SOURCE:
-                                os.unlink(in_path)
-                                os.rename(tmp_file, in_path)
-                                new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+                                self.recvfile(s, filesize, tmp_file)
 
+                                if not wandarr.KEEP_SOURCE:
+                                    os.unlink(in_path)
+                                    os.rename(tmp_file, in_path)
+                                    new_filesize_mb = int(os.path.getsize(in_path) / (1024 * 1024))
+
+                                    wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
+                                                              'file': basename,
+                                                              'completed': 100,
+                                                              'status': f'{orig_file_size_mb}mb -> {new_filesize_mb}mb'})
+                            else:
+                                # agent already put the new file in place on the share
+                                new_filesize = parts[2]
+                                new_filesize_mb = int(int(new_filesize) / (1024 * 1024))
                                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                                           'file': basename,
                                                           'completed': 100,

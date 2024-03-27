@@ -1,14 +1,49 @@
 
 import math
 import os
+import re
 import platform
 import subprocess
+import urllib.request
+from threading import Thread
 from typing import Dict
 
 import wandarr
 from wandarr.media import MediaInfo
 from wandarr.template import Template
 
+
+class VersionFetcher(Thread):
+    def __init__(self):
+        super().__init__(daemon=True, name="VersionFetcher")
+        self.version = None
+
+    def run(self):
+        try:
+            with urllib.request.urlopen(
+                    "https://raw.githubusercontent.com/mlsmithjr/wandarr/master/wandarr/__init__.py") as response:
+                page = response.read().decode("utf-8")
+                match = re.search(r'^__version__.=.[\'\"](\w\.\w\.\w)[\'\"]', page)
+                if match:
+                    self.version = match.group(1)
+
+        except Exception as ex:
+            # nothing we can do about this anyhow
+            pass
+
+# def pypi_latest_version() -> Optional[str]:
+#     try:
+#         with urllib.request.urlopen("https://github.com/mlsmithjr/wandarr/blob/master/wandarr/__init__.py") as response:
+# #        with urllib.request.urlopen('https://pypi.org/project/wandarr/') as response:
+#             page = response.read()
+# #            match = re.search(r'.*<h1>.*wan (\w\.\w\.\w).*</h1>', page)
+#             match = re.search(r'^__version__.=.[\'\"](\w\.\w\.\w)[\'\"]', page)
+#             if match:
+#                 return match.group(0)
+#     except:
+#         # nothing we can do about this anyhow
+#         pass
+#     return None
 
 def filter_threshold(template: Template, in_path: str, out_path: str):
     if template.threshold() > 0:
@@ -35,7 +70,7 @@ def files_from_file(queue_path) -> list:
 
 
 def get_local_os_type():
-    return {'Windows': 'win10', 'Linux': 'linux', 'Darwin': 'macos'}.get(platform.system(), 'unknown')
+    return {'Windows': 'windows', 'Linux': 'linux', 'Darwin': 'macos'}.get(platform.system(), 'unknown')
 
 
 def calculate_progress(info: MediaInfo, stats: Dict) -> (int, int):
