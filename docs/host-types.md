@@ -39,6 +39,7 @@ PROS
 CONS
 * As of version 1.0.7 there is no security on the endpoint so it is expected the user have a secure networking environment. A more secure design is on the road map.
 * Multiple copies of wandarr to upgrade as they happen.
+* You must log into the host and manually start wandarr in agent mode.
 ---
 
 ## path-substitutions
