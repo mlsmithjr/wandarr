@@ -1,5 +1,8 @@
 ## Changes
 
+#### 05/2/2024 v1.0.8
+* Added compatibility with new ffmpeg (7.0) changes that prevented progress updates.
+
 #### 02/27/2024 v1.0.7
 * Added version check to let you know if there is a new release of wandarr.
 * Added agent ability access local shares instead of copying files to and from the host.

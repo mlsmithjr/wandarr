@@ -54,7 +54,7 @@ def init_argparse() -> argparse.ArgumentParser:
                         action='store', help="Video quality (override for default in template)", default=None, required=False)
     parser.add_argument('--from-file', dest='from_file',
                         action='store', help='Filename that contains list of full paths of files to transcode')
-    parser.add_argument("--console", dest="console", action="store_true", required=False, help=argparse.SUPPRESS)
+    parser.add_argument("--console", dest="console", action="store_true", required=False, help="Use ugly console mode") # help=argparse.SUPPRESS)
     return parser
 
 

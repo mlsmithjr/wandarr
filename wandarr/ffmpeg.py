@@ -11,13 +11,13 @@ from tempfile import gettempdir
 from typing import Dict, Any, Optional
 import json
 
+import wandarr
 from wandarr.media import MediaInfo
 
 status_re = re.compile(
-    r'^.* fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)kB time=(?P<time>\d\d:\d\d:\d\d\.\d\d) .*speed=(?P<speed>.*?)x')
+    r'^.* fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)(?:kB|KiB) time=(?P<time>\d\d:\d\d:\d\d\.\d\d) .*speed=(?P<speed>.*?)x')
 
 _CHARSET: str = sys.getdefaultencoding()
-
 
 class FFmpeg:
 
@@ -140,6 +140,8 @@ class FFmpeg:
                 logfile.write(line)
                 logfile.flush()
 
+                if wandarr.VERBOSE:
+                    print(line)
                 match = status_re.match(line)
                 if match is not None and len(match.groups()) >= 5:
                     info = match.groupdict()
