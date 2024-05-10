@@ -1,5 +1,8 @@
 ## Changes
 
+#### 05/10/2024 v1.0.9
+* More updates to compensate for ffmpeg 7.0 occasional missing or erroneous time calculations.
+
 #### 05/2/2024 v1.0.8
 * Added compatibility with new ffmpeg (7.0) changes that prevented progress updates.
 

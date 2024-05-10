@@ -236,14 +236,14 @@ class ManagedHost(Thread):
             pct_done, pct_comp = calculate_progress(job.media_info, stats)
             wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                       'file': os.path.basename(job.in_path),
-                                      'speed': f"{stats['speed']}x",
+                                      'speed': "---" if stats['speed'] == "N/A" else f"{stats['speed']}x",
                                       'comp': f"{pct_comp}%",
                                       'completed': pct_done})
 
             if job.should_abort(pct_done, pct_comp):
                 wandarr.status_queue.put({'host': f"{self.hostname}/{self.engine_name}",
                                           'file': os.path.basename(job.in_path),
-                                          'speed': f"{stats['speed']}x",
+                                          'speed': "---" if stats['speed'] == "N/A" else f"{stats['speed']}x",
                                           'comp': f"{pct_comp}%",
                                           'completed': 100,
                                           'status': "Skipped (threshold)"})

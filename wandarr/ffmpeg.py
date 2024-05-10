@@ -15,9 +15,10 @@ import wandarr
 from wandarr.media import MediaInfo
 
 status_re = re.compile(
-    r'^.* fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)(?:kB|KiB) time=(?P<time>\d\d:\d\d:\d\d\.\d\d) .*speed=(?P<speed>.*?)x')
+    r'^.*frame=\s*(?P<frame>\d+?) fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)(?:(kB)|(KiB)) time=(?P<time>(\d\d:\d\d:\d\d\.\d\d)|(N/A)) .*speed=(?P<speed>(N/A)|(.*x))')
 
 _CHARSET: str = sys.getdefaultencoding()
+
 
 class FFmpeg:
 
@@ -90,8 +91,8 @@ class FFmpeg:
         try:
             mi = self.fetch_details_ffprobe(_path)
             if mi:
-                if mi.runtime == 0:
-                    print(f"Notice: runtime metadata missing from {_path} - progress indicator will be inaccurate")
+                if mi.frames == 0:
+                    print(f"Notice: 'frames' runtime metadata missing from {_path} - progress indicator will be inaccurate")
                 return mi
         except Exception:
             pass
@@ -141,15 +142,17 @@ class FFmpeg:
                 logfile.flush()
 
                 if wandarr.VERBOSE:
-                    print(line)
+                    print(line, end='')     # output from ffmpeg already has cr/lf
                 match = status_re.match(line)
                 if match is not None and len(match.groups()) >= 5:
                     info = match.groupdict()
 
+                    info['frame'] = int(info['frame'])
                     info['size'] = int(info['size'].strip()) * 1024
-                    hh, mm, ss = info['time'].split(':')
-                    ss = ss.split('.')[0]
-                    info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
+                    if info['time'] != 'N/A':
+                        hh, mm, ss = info['time'].split(':')
+                        ss = ss.split('.')[0]
+                        info['time'] = (int(hh) * 3600) + (int(mm) * 60) + int(ss)
 
                     if datetime.datetime.now() > event:
                         yield info

@@ -49,7 +49,7 @@ class LocalHost(ManagedHost):
 
                 stream_map = super().map_streams(job)
 
-                cli = ['-y', *job.template.input_options_list(), '-i', in_path,
+                cli = ['-stats_period', '2', '-y', *job.template.input_options_list(), '-i', in_path,
                        *video_options,
                        *job.template.output_options_list(), *stream_map,
                        out_path]

@@ -5,7 +5,7 @@
 ######################################################
 config:
   ffmpeg: '/opt/homebrew/bin/ffmpeg'  # location of ffmpeg on the host running this
-  rich: yes     # use rich text library for nicer output
+  rich: yes     # use rich text library for nicer output, otherwise uses simple serial output
   ssh: /usr/bin/ssh   # defaults to /usr/bin/sh, will be different on windows
 
 ##############################################################################

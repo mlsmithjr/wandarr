@@ -62,7 +62,7 @@ class StreamingManagedHost(ManagedHost):
 
                 stream_map = super().map_streams(job)
 
-                cmd = ['-y', *job.template.input_options_list(), '-i', self.converted_path(remote_in_path),
+                cmd = ['-stats_period', '2', '-y', *job.template.input_options_list(), '-i', self.converted_path(remote_in_path),
                        *video_options,
                        *job.template.output_options_list(), *stream_map,
                        self.converted_path(remote_out_path)]

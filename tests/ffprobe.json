@@ -54,7 +54,8 @@
             "tags": {
                 "language": "eng",
                 "ENCODER": "Lavc60.3.100 hevc_videotoolbox",
-                "DURATION": "00:53:17.862000000"
+                "DURATION": "00:53:17.862000000",
+                "NUMBER_OF_FRAMES": "74426"
             }
         },
         {

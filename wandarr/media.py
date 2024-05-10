@@ -9,6 +9,7 @@ from rich.table import Table
 from rich.console import Console
 
 video_dur = re.compile(r".*Duration: (\d+):(\d+):(\d+)", re.DOTALL)
+frames_re = re.compile(r'^.*Stream #0:0.*NUMBER_OF_FRAMES.+?(?P<frames>\d+)$', re.DOTALL | re.MULTILINE)
 video_info = re.compile(
     r'.*Stream #0:(\d+)(?:\(\w+\))?: Video: (\w+).*, (yuv\w+)[(,].* (\d+)x(\d+).* (\d+)(\.\d.)? fps', re.DOTALL)
 audio_info = re.compile(
@@ -40,11 +41,12 @@ class StreamInfoWrapper:
         return self.data.get("lang", "???")
 
     @property
-    def size_mb(self) -> str:
-        return self.data.get("mb", 0)
+    def size_mb(self) -> int:
+        return int(self.data.get("mb", 0))
 
     def __str__(self):
         return json.dumps(self.data)
+
 
 class MediaInfo:
     # pylint: disable=too-many-instance-attributes
@@ -55,6 +57,7 @@ class MediaInfo:
             return
         self.path = info['path']
         self.vcodec = info['vcodec']
+        self.frames = info['frames']
         self.stream = info['stream']
         self.res_height = info['res_height']
         self.res_width = info['res_width']
@@ -77,7 +80,7 @@ class MediaInfo:
             lang = a.lang
             line = lang + dind + ',' + a.format
             if a.size_mb:
-                line += ',' + a.size_mb + 'mb'
+                line += f', {a.size_mb}mb'
             audios.append(line)
 
         subs = []
@@ -114,7 +117,7 @@ class MediaInfo:
                     lang = a.lang
                     line = lang + dind + ',' + a.format
                     if a.size_mb:
-                        line += ',' + a.size_mb + 'mb'
+                        line += ',' + str(a.size_mb) + 'mb'
                     audios.append(line)
 
                 subs = []
@@ -168,6 +171,9 @@ class MediaInfo:
             print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
             return None
 
+        frames_match = frames_re.match(output)
+        frames = int(frames_match.groupdict()['frames']) if frames_match else 0
+
         match2 = video_info.match(output)
         if match2 is None or len(match2.groups()) < 5:
             print(f'>>>> regex match on video stream data failed: ffmpeg -i {_path}')
@@ -180,6 +186,7 @@ class MediaInfo:
             'path': _path,
             'vcodec': _codec,
             'stream': _id,
+            'frames': frames,
             'res_width': int(_res_width),
             'res_height': int(_res_height),
             'runtime': (int(_dur_hrs) * 3600) + (int(_dur_mins) * 60) + int(_dur_secs),
@@ -213,6 +220,10 @@ class MediaInfo:
         fr = int(int(fr_parts[0]) / int(fr_parts[1]))
         minfo['fps'] = fr
         minfo['colorspace'] = stream['pix_fmt']
+        if 'tags' in stream and 'NUMBER_OF_FRAMES' in stream['tags']:
+            frames = int(stream['tags']['NUMBER_OF_FRAMES'])
+            minfo['frames'] = frames
+
         if 'duration' in stream:
             minfo['runtime'] = int(float(stream['duration']))
         else:

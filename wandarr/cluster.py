@@ -311,7 +311,7 @@ def manage_cluster(files, config: ConfigFile, template_name: str, vq_override: s
                     report['completed'] = done
                     status = report.get('status')
 
-                    print(f'{host:20}|{basename}: speed: {speed or "?"}, comp: {comp or "?"}, done: {done or 0:3}%, status: {status or ""}')
+                    print(f'{host:20}|{basename}: speed: {speed or "?"}, comp: {comp or "?"}, done: {done or 0:3}%, status: {status or "running"}')
 
 #                    print(f'{host:20}|{basename}: speed: {speed}x, comp: {comp}%, done: {done:3}%, status: {status}')
                     sys.stdout.flush()

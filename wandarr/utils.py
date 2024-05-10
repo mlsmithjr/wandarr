@@ -74,8 +74,21 @@ def get_local_os_type():
 
 
 def calculate_progress(info: MediaInfo, stats: Dict) -> (int, int):
-    # pct done calculation only works if video duration >= 1 minute
-    if info.runtime > 0:
+
+    #
+    # Due to some recent changes in ffmpeg (post 7.0) the encoding output sometimes
+    # shows N/A instead of needed information for current video timeframe. And even
+    # when it isn't N/A it sometimes shows the same time value across multiple updates.
+    # This causes the progress calculation to be inaccurate.
+    # So now we also collect the number of frames to use to calculate percentage done in case
+    # the times are presented as N/A
+    #
+
+    # default to using frames as it now seems to be the most accurate metric, at least until the
+    # ffmpeg bug is fixed.
+    if info.frames and stats['frame']:
+        pct_done = int((stats['frame'] / info.frames) * 100)
+    elif info.runtime > 0 and stats['time'] != 'N/A':
         pct_done = int((stats['time'] / info.runtime) * 100)
     else:
         pct_done = 0

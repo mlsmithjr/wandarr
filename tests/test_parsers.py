@@ -13,6 +13,7 @@ def validate_media_info(mi: MediaInfo):
     assert mi.fps == 23
     assert (mi.res_width, mi.res_height) == (1920,960)
     assert mi.runtime == (53*60)+17
+    assert mi.frames == 74426
 
     assert mi.audio[0].format == "eac3"
     assert mi.audio[0].lang == "eng"

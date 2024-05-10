@@ -114,13 +114,13 @@ class AgentManagedHost(ManagedHost):
                     self.remote_in_path, self.remote_out_path = self.props.substitute_paths(in_path, out_path)
                     if wandarr.VERBOSE:
                         print(f"substituted {self.remote_in_path} for {in_path}")
-                    cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', self.remote_in_path,
+                    cmd = [self.props.ffmpeg_path, '-stats_period', '2', '-y', *job.template.input_options_list(), '-i', self.remote_in_path,
                            *video_options,
                            *job.template.output_options_list(), *stream_map, self.remote_out_path]
                     has_sharing = True
                 else:
                     # no path mapping, so we're sending the file
-                    cmd = [self.props.ffmpeg_path, '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
+                    cmd = [self.props.ffmpeg_path, '-stats_period', '2', '-y', *job.template.input_options_list(), '-i', '{FILENAME}',
                            *video_options,
                            *job.template.output_options_list(), *stream_map]
 
