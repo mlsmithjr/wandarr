@@ -2,6 +2,8 @@
 This CLI tool is a transcoding workflow manager that makes transcoding video files easier and optionally across multiple
 machines in parallel, using ffmpeg. It is the successor to pytranscoder and is based on the fundamental codebase  of that project.
 
+## NOTE that ffmpeg version 7.0 has some wonky status output that confuses wandarr.  For the time being I recommend setting your wandarr.yml "rich=" setting to "off" -- ie rich=off
+
 #### Features:
 * Sequential or concurrent transcoding. 
 * Concurrent mode allows you to make maximum use of your 
