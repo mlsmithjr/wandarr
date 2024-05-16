@@ -174,7 +174,7 @@ class ManagedHost(Thread):
         if " " in path:
             path = '"' + path + '"'
         if self.props.is_windows():
-            path = path.replace(' ', '\ ')
+            path = path.replace(' ', '\\')
             return str(PureWindowsPath(path))
         return str(PosixPath(path))
 
@@ -190,7 +190,7 @@ class ManagedHost(Thread):
         with subprocess.Popen(ping, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False) as p:
             p.communicate()
             if p.returncode != 0:
-                self.log(f"Host at address {addr} cannot be reached - skipped", style="magenta")
+                self.log(f"ping test: Host at address {addr} cannot be reached - skipped", style="magenta")
                 return False
             return True
 

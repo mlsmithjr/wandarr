@@ -78,8 +78,7 @@ class Cluster(Thread):
                             if not self._init_host_mounted(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
                                 down_hosts.append(host)
                                 continue
-                            else:
-                                up_hosts.append(host)
+                            up_hosts.append(host)
 
                         case "streaming":
                             if wandarr.VERBOSE:
@@ -87,17 +86,15 @@ class Cluster(Thread):
                             if not self._init_host_streaming(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
                                 down_hosts.append(host)
                                 continue
-                            else:
-                                up_hosts.append(host)
+                            up_hosts.append(host)
 
                         case "agent":
                             if wandarr.VERBOSE:
                                 print(f"{host=} {qname=} {host_engine_name=} {cli=}")
                             if not self._init_host_agent(host, host_props, qname, host_engine_name, cli, host not in up_hosts):
-                               down_hosts.append(host)
-                               continue
-                            else:
-                                up_hosts.append(host)
+                                down_hosts.append(host)
+                                continue
+                            up_hosts.append(host)
 
                         case _:
                             print(f'Unknown cluster host type "{host_type}" - skipping')

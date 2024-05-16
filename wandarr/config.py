@@ -85,4 +85,3 @@ class ConfigFile:
     @property
     def ssh_path(self):
         return self.settings.get('ssh', '/usr/bin/ssh')
-

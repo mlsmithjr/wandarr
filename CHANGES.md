@@ -1,5 +1,8 @@
 ## Changes
 
+#### 05/16/2024 v1.1.0
+* Fixed bug in progress calculation for agent mode.
+
 #### 05/10/2024 v1.0.9
 * More updates to compensate for ffmpeg 7.0 occasional missing or erroneous time calculations.
 

@@ -70,7 +70,6 @@ class MediaInfo:
 
     def __str__(self):
         runtime = "{:0>8}".format(str(timedelta(seconds=self.runtime)))
-        print("DEBUG")
         for a in self.audio:
             print(a)
 

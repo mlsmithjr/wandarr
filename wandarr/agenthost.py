@@ -15,6 +15,9 @@ class AgentManagedHost(ManagedHost):
     def __init__(self, hostname, props: RemoteHostProperties, queue: Queue):
         super().__init__(hostname, props, queue)
 
+        self.remote_in_path = None
+        self.remote_out_path = None
+
     #
     # override the standard ssh-based host_ok for agent verification
     #

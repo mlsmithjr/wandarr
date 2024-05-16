@@ -26,24 +26,10 @@ class VersionFetcher(Thread):
                 match = re.search(r'^__version__.=.[\'\"](\w\.\w\.\w)[\'\"]', page)
                 if match:
                     self.version = match.group(1)
-
         except Exception as ex:
             # nothing we can do about this anyhow
             pass
 
-# def pypi_latest_version() -> Optional[str]:
-#     try:
-#         with urllib.request.urlopen("https://github.com/mlsmithjr/wandarr/blob/master/wandarr/__init__.py") as response:
-# #        with urllib.request.urlopen('https://pypi.org/project/wandarr/') as response:
-#             page = response.read()
-# #            match = re.search(r'.*<h1>.*wan (\w\.\w\.\w).*</h1>', page)
-#             match = re.search(r'^__version__.=.[\'\"](\w\.\w\.\w)[\'\"]', page)
-#             if match:
-#                 return match.group(0)
-#     except:
-#         # nothing we can do about this anyhow
-#         pass
-#     return None
 
 def filter_threshold(template: Template, in_path: str, out_path: str):
     if template.threshold() > 0:

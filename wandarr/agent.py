@@ -2,9 +2,7 @@ import socket
 import os
 import subprocess
 import sys
-import time
 from threading import Thread
-from typing import List
 
 import wandarr
 
@@ -127,17 +125,17 @@ class Runner(Thread):
                         if confirmation == "PING":
                             # ping received out of context, ignore
                             continue
-                        elif confirmation == "STOP":
+                        if confirmation == "STOP":
                             proc.kill()
                             print(f"[{self.thread_id}] Client stopped the transcode, cleaning up")
                             vetoed = True
                             break
-                        elif confirmation == "VETO":
+                        if confirmation == "VETO":
                             proc.kill()
                             print(f"[{self.thread_id}] Client vetoed the transcode, cleaning up")
                             vetoed = True
                             break
-                        elif confirmation != "ACK!":
+                        if confirmation != "ACK!":
                             proc.kill()
                             print(f"[{self.thread_id}] Protocol error - expected ACK from client, got {confirmation}")
                             print("Cleaning up")

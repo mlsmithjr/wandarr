@@ -190,8 +190,7 @@ class FFmpeg:
                         if c.startswith("ERR|"):
                             print(f"See error log at {self.log_path}")
                             break
-                        else:
-                            os.remove(str(self.log_path))
+                        os.remove(str(self.log_path))
                         self.log_path = None
                     except Exception as ex:
                         print(str(ex))
@@ -207,6 +206,7 @@ class FFmpeg:
                         event = datetime.datetime.now() + diff
                         info: Dict[str, Any] = match.groupdict()
 
+                        info['frame'] = int(info['frame'])
                         info['size'] = int(info['size'].strip()) * 1024
                         hh, mm, ss = info['time'].split(':')
                         ss = ss.split('.')[0]
