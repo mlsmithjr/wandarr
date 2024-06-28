@@ -1,5 +1,8 @@
 ## Changes
 
+#### 06/28/2024 v1.1.1
+* Prevent exception if no frame count detected in media metadata
+
 #### 05/16/2024 v1.1.0
 * Fixed bug in progress calculation for agent mode.
 

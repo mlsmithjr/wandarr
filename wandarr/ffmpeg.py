@@ -94,7 +94,7 @@ class FFmpeg:
                 if mi.frames == 0:
                     print(f"Notice: 'frames' runtime metadata missing from {_path} - progress indicator will be inaccurate")
                 return mi
-        except Exception:
+        except Exception as ex:
             pass
 
         #

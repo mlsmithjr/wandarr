@@ -30,9 +30,15 @@ class Template:
         return opts
 
     def audio_langs(self) -> list:
+        # allow for space or , separated list
+        if self.template.get("audio-lang", "").find(" ") != -1:
+            return self.template.get("audio-lang", "").split(" ")
         return self.template.get("audio-lang", "").split(",")
 
     def subtitle_langs(self) -> list:
+        # allow for space or , separated list
+        if self.template.get("subtitle-lang", "").find(" ") != -1:
+            return self.template.get("subtitle-lang", "").split(" ")
         return self.template.get("subtitle-lang", "").split(",")
 
     def video_select(self):

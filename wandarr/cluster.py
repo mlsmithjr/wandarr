@@ -174,6 +174,10 @@ class Cluster(Thread):
 
             template = self.config.templates[template_name]
             video_quality = vq_override or template.video_select()
+            if not video_quality:
+                print(f"Template setting 'video-quality' not set for template {template_name}")
+                sys.exit(1)
+
             if video_quality not in self.queues:
                 print((f"Cannot match quality '{video_quality}' to any related host engines. "
                       "Make sure there is at least one host with an engine that supports this quality."))

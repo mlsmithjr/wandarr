@@ -222,6 +222,8 @@ class MediaInfo:
         if 'tags' in stream and 'NUMBER_OF_FRAMES' in stream['tags']:
             frames = int(stream['tags']['NUMBER_OF_FRAMES'])
             minfo['frames'] = frames
+        else:
+            minfo['frames'] = 0
 
         if 'duration' in stream:
             minfo['runtime'] = int(float(stream['duration']))
