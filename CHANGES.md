@@ -1,5 +1,8 @@
 ## Changes
 
+#### 01/15/2025 v1.1.2
+* Removed -v flag from remote host ssh call that was corrupting ffmpeg output
+
 #### 06/28/2024 v1.1.1
 * Prevent exception if no frame count detected in media metadata
 

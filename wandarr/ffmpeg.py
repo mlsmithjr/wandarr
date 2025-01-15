@@ -17,6 +17,7 @@ from wandarr.media import MediaInfo
 status_re = re.compile(
     r'^.*frame=\s*(?P<frame>\d+?) fps=\s*(?P<fps>.+?) q=(?P<q>.+\.\d) size=\s*(?P<size>\d+?)(?:(kB)|(KiB)) time=(?P<time>(\d\d:\d\d:\d\d\.\d\d)|(N/A)) .*speed=(?P<speed>(N/A)|(.*x))')
 
+# frame= 1462 fps=426 q=20.0 Lsize=   31244kB time=00:01:01.56 bitrate=4157.2kbits/s speed=17.9x
 _CHARSET: str = sys.getdefaultencoding()
 
 
@@ -58,7 +59,7 @@ class FFmpeg:
         return True, stats
 
     def remote_execute_and_monitor(self, sshcli: str, user: str, ip: str, params: list, event_callback, monitor) -> Optional[int]:
-        cli = [sshcli, '-v', user + '@' + ip, self.path, *params]
+        cli = [sshcli, user + '@' + ip, self.path, *params]
         self.last_command = ' '.join(cli)
         with subprocess.Popen(cli,
                               stdout=subprocess.PIPE,

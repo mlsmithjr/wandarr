@@ -235,6 +235,7 @@ class MediaInfo:
                         duration = (int(float(hh)) * 3600) + (int(float(mm)) * 60) + int(float(ss))
                         minfo['runtime'] = duration
                         break
+#        print(f"{minfo=}")
 
     @staticmethod
     def _parse_json_audio(stream: Dict, minfo: Dict):
