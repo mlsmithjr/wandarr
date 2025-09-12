@@ -108,7 +108,12 @@ class MediaInfo:
             table.add_column("Subtitle", justify="right", style="green")
 
             for path in files:
-                mi = ffmpeg.fetch_details(path)
+                try:
+                    mi = ffmpeg.fetch_details(path)
+                except ValueError:
+                    # just eat the error
+                    continue
+
                 mins = int(mi.runtime / 60)
                 audios = []
                 for a in mi.audio:
@@ -198,7 +203,12 @@ class MediaInfo:
     @staticmethod
     def parse_ffmpeg_details(_path, output):
 
+        if not os.path.isfile(_path):
+            raise ValueError(f"{_path} is not a file")
+
         info = MediaInfo._parse_regex_video(_path, output)
+        if not info:
+            raise ValueError(f"{_path} is not a valid media file")
         audio_tracks = MediaInfo._parse_regex_audio(output)
         subtitle_tracks = MediaInfo._parse_regex_subtitle(output)
 
