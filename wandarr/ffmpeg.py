@@ -103,6 +103,8 @@ class FFmpeg:
         #
         with subprocess.Popen([self.path, '-i', _path], stderr=subprocess.PIPE) as proc:
             output = proc.stderr.read().decode(encoding='utf8')
+            if output.startswith("Error"):
+                raise ValueError(output)
             mi = MediaInfo.parse_ffmpeg_details(_path, output)
             if mi.valid:
                 if mi.runtime == 0:
